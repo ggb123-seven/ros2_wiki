@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}ROS2 Wiki - 首页{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1>ROS2 技术教程</h1>
+        <p class="lead">学习ROS2机器人操作系统，掌握现代机器人开发技术</p>
+        
+        <div class="row">
+            {% for document in documents %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ document[1] }}</h5>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                分类：{{ document[4] }} | 
+                                作者：{{ document[7] or '管理员' }} | 
+                                发布时间：{{ document[5][:16] }}
+                            </small>
+                        </p>
+                        <a href="{{ url_for('view_document', doc_id=document[0]) }}" class="btn btn-primary">阅读教程</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not documents %}
+        <div class="alert alert-info">
+            <h4>欢迎来到ROS2 Wiki！</h4>
+            <p>这里将提供丰富的ROS2教程内容，包括：</p>
+            <ul>
+                <li>ROS2基础概念和架构</li>
+                <li>节点（Node）开发</li>
+                <li>话题（Topic）通信</li>
+                <li>服务（Service）调用</li>
+                <li>参数服务器使用</li>
+                <li>Launch文件编写</li>
+                <li>自定义消息和服务</li>
+                <li>机器人导航和SLAM</li>
+            </ul>
+            <p>请管理员添加教程内容。</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>ROS2学习路径</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">🚀 ROS2环境搭建</li>
+                    <li class="list-group-item">📦 包管理和工作空间</li>
+                    <li class="list-group-item">🔄 节点通信机制</li>
+                    <li class="list-group-item">🛠️ 常用工具和调试</li>
+                    <li class="list-group-item">🤖 机器人应用开发</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

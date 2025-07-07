@@ -1,0 +1,108 @@
+/* 自定义样式 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* 代码块样式 */
+pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+}
+
+/* 文档内容样式 */
+#document-content {
+    line-height: 1.6;
+}
+
+#document-content h1,
+#document-content h2,
+#document-content h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+#document-content h1 {
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.5rem;
+}
+
+#document-content h2 {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.25rem;
+}
+
+#document-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.375rem;
+}
+
+#document-content blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 1rem;
+    margin-left: 0;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+/* 目录样式 */
+#toc a {
+    color: #6c757d;
+    padding: 0.25rem 0;
+    display: block;
+}
+
+#toc a:hover {
+    color: #007bff;
+}
+
+/* 评论区样式 */
+.border-bottom:last-child {
+    border-bottom: none !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    #document-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    #document-content h2 {
+        font-size: 1.3rem;
+    }
+    
+    #document-content h3 {
+        font-size: 1.1rem;
+    }
+}
