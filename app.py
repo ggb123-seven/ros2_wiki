@@ -217,7 +217,37 @@ def add_comment(doc_id):
     flash('评论添加成功')
     return redirect(url_for('view_document', doc_id=doc_id))
 
+# 确保数据库初始化
+init_db()
+
+# 如果数据库为空，添加示例数据
+try:
+    conn = sqlite3.connect(app.config['DATABASE'])
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM users')
+    user_count = cursor.fetchone()[0]
+    
+    if user_count == 0:
+        # 添加默认用户
+        admin_hash = generate_password_hash('admin123')
+        user_hash = generate_password_hash('user123')
+        
+        cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+                      ('admin', 'admin@example.com', admin_hash))
+        cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+                      ('ros2_learner', 'user@example.com', user_hash))
+        
+        # 添加示例文档
+        cursor.execute('''INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)''',
+                      ('ROS2快速入门', '# ROS2快速入门\n\n欢迎来到ROS2世界！', 1, 'ROS2基础'))
+        
+        conn.commit()
+        print("数据库初始化完成")
+    
+    conn.close()
+except Exception as e:
+    print(f"数据库初始化错误: {e}")
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
