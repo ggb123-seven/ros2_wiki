@@ -15,6 +15,9 @@
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
                     <span class="navbar-text me-3">欢迎，{{ current_user.username }}！</span>
+                    {% if current_user.is_admin %}
+                        <a class="nav-link" href="{{ url_for('admin_dashboard') }}">管理后台</a>
+                    {% endif %}
                     <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
                 {% else %}
                     <a class="nav-link" href="{{ url_for('login') }}">登录</a>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑文档 - ROS2 Wiki</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .edit-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group textarea {
+            min-height: 400px;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background: #007bff;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .document-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="edit-container">
+        <h1>编辑文档</h1>
+        
+        <div class="document-info">
+            <p><strong>文档ID：</strong>{{ document[0] }}</p>
+            <p><strong>创建时间：</strong>{{ document[5] }}</p>
+            <p><strong>最后更新：</strong>{{ document[6] }}</p>
+        </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="title">文档标题</label>
+                <input type="text" id="title" name="title" required 
+                       value="{{ document[1] }}">
+            </div>
+
+            <div class="form-group">
+                <label for="category">文档分类</label>
+                <select id="category" name="category">
+                    <option value="ROS2基础" {% if document[4] == 'ROS2基础' %}selected{% endif %}>ROS2基础</option>
+                    <option value="ROS2进阶" {% if document[4] == 'ROS2进阶' %}selected{% endif %}>ROS2进阶</option>
+                    <option value="ROS2应用" {% if document[4] == 'ROS2应用' %}selected{% endif %}>ROS2应用</option>
+                    <option value="ROS2工具" {% if document[4] == 'ROS2工具' %}selected{% endif %}>ROS2工具</option>
+                    <option value="ROS2案例" {% if document[4] == 'ROS2案例' %}selected{% endif %}>ROS2案例</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="content">文档内容（支持Markdown格式）</label>
+                <textarea id="content" name="content" required>{{ document[2] }}</textarea>
+            </div>
+
+            <div class="button-group">
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
+                <button type="submit" class="btn btn-primary">保存修改</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

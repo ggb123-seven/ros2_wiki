@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上传文档 - ROS2 Wiki</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .upload-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group textarea {
+            min-height: 400px;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background: #007bff;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .markdown-help {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .markdown-help h4 {
+            margin-top: 0;
+        }
+        .markdown-help code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h1>上传新文档</h1>
+        
+        <div class="markdown-help">
+            <h4>Markdown 语法提示</h4>
+            <ul>
+                <li>标题：<code># 一级标题</code> <code>## 二级标题</code></li>
+                <li>粗体：<code>**粗体文字**</code></li>
+                <li>代码块：<code>```python</code> ... <code>```</code></li>
+                <li>链接：<code>[链接文字](http://url)</code></li>
+                <li>图片：<code>![alt文字](图片url)</code></li>
+            </ul>
+        </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="title">文档标题</label>
+                <input type="text" id="title" name="title" required 
+                       placeholder="例如：ROS2导航系统详解">
+            </div>
+
+            <div class="form-group">
+                <label for="category">文档分类</label>
+                <select id="category" name="category">
+                    <option value="ROS2基础">ROS2基础</option>
+                    <option value="ROS2进阶">ROS2进阶</option>
+                    <option value="ROS2应用">ROS2应用</option>
+                    <option value="ROS2工具">ROS2工具</option>
+                    <option value="ROS2案例">ROS2案例</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="content">文档内容（支持Markdown格式）</label>
+                <textarea id="content" name="content" required 
+                          placeholder="在这里输入文档内容...
+
+# 示例标题
+
+这是一段文字。
+
+## 代码示例
+
+```python
+import rclpy
+from rclpy.node import Node
+
+class MyNode(Node):
+    def __init__(self):
+        super().__init__('my_node')
+```"></textarea>
+            </div>
+
+            <div class="button-group">
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
+                <button type="submit" class="btn btn-primary">上传文档</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
