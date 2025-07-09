@@ -494,6 +494,28 @@ def admin_dashboard():
         </div>
         '''
 
+@app.route('/test')
+def test_route():
+    """测试路由"""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>测试页面 - ROS2 Wiki</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container mt-4">
+            <div class="alert alert-success">
+                <h4>测试路由正常工作！</h4>
+                <p>这说明紧急修复版本已经部署成功。</p>
+                <a href="/" class="btn btn-primary">返回首页</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+
 @app.route('/document/<int:doc_id>')
 def view_document(doc_id):
     """查看文档详情 - 直接HTML渲染"""
