@@ -251,7 +251,9 @@ def login():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        if app.config['DATABASE_URL']:
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+        
+        if use_postgresql:
             cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
         else:
             cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
@@ -277,9 +279,10 @@ def register():
         
         conn = get_db_connection()
         cursor = conn.cursor()
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
         
         # 检查用户是否已存在
-        if app.config['DATABASE_URL']:
+        if use_postgresql:
             cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (username, email))
         else:
             cursor.execute('SELECT * FROM users WHERE username = ? OR email = ?', (username, email))
@@ -291,7 +294,7 @@ def register():
         
         # 创建新用户
         password_hash = generate_password_hash(password)
-        if app.config['DATABASE_URL']:
+        if use_postgresql:
             cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)',
                           (username, email, password_hash))
         else:
@@ -318,19 +321,23 @@ def view_document(doc_id):
     """查看文档详情"""
     conn = get_db_connection()
     cursor = conn.cursor()
+    use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
     
     # 获取文档
-    cursor.execute('''
-        SELECT d.*, u.username 
-        FROM documents d 
-        LEFT JOIN users u ON d.author_id = u.id 
-        WHERE d.id = %s
-    ''' if app.config['DATABASE_URL'] else '''
-        SELECT d.*, u.username 
-        FROM documents d 
-        LEFT JOIN users u ON d.author_id = u.id 
-        WHERE d.id = ?
-    ''', (doc_id,))
+    if use_postgresql:
+        cursor.execute('''
+            SELECT d.*, u.username 
+            FROM documents d 
+            LEFT JOIN users u ON d.author_id = u.id 
+            WHERE d.id = %s
+        ''', (doc_id,))
+    else:
+        cursor.execute('''
+            SELECT d.*, u.username 
+            FROM documents d 
+            LEFT JOIN users u ON d.author_id = u.id 
+            WHERE d.id = ?
+        ''', (doc_id,))
     document = cursor.fetchone()
     
     if not document:
@@ -338,19 +345,22 @@ def view_document(doc_id):
         return redirect(url_for('index'))
     
     # 获取评论
-    cursor.execute('''
-        SELECT c.*, u.username 
-        FROM comments c 
-        LEFT JOIN users u ON c.user_id = u.id 
-        WHERE c.document_id = %s 
-        ORDER BY c.created_at DESC
-    ''' if app.config['DATABASE_URL'] else '''
-        SELECT c.*, u.username 
-        FROM comments c 
-        LEFT JOIN users u ON c.user_id = u.id 
-        WHERE c.document_id = ? 
-        ORDER BY c.created_at DESC
-    ''', (doc_id,))
+    if use_postgresql:
+        cursor.execute('''
+            SELECT c.*, u.username 
+            FROM comments c 
+            LEFT JOIN users u ON c.user_id = u.id 
+            WHERE c.document_id = %s 
+            ORDER BY c.created_at DESC
+        ''', (doc_id,))
+    else:
+        cursor.execute('''
+            SELECT c.*, u.username 
+            FROM comments c 
+            LEFT JOIN users u ON c.user_id = u.id 
+            WHERE c.document_id = ? 
+            ORDER BY c.created_at DESC
+        ''', (doc_id,))
     comments = cursor.fetchall()
     
     conn.close()
@@ -361,64 +371,94 @@ def view_document(doc_id):
 @admin_required
 def admin_dashboard():
     """管理员后台"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 获取统计信息
-    cursor.execute('SELECT COUNT(*) FROM users')
-    user_count = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(*) FROM documents')
-    doc_count = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(*) FROM comments')
-    comment_count = cursor.fetchone()[0]
-    
-    # 获取最新文档
-    cursor.execute('''
-        SELECT d.*, u.username 
-        FROM documents d 
-        LEFT JOIN users u ON d.author_id = u.id 
-        ORDER BY d.created_at DESC
-        LIMIT 10
-    ''')
-    recent_docs = cursor.fetchall()
-    
-    conn.close()
-    
-    return render_template('admin/dashboard.html', 
-                         user_count=user_count,
-                         doc_count=doc_count,
-                         comment_count=comment_count,
-                         recent_docs=recent_docs)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取统计信息
+        cursor.execute('SELECT COUNT(*) FROM users')
+        user_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM documents')
+        doc_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM comments')
+        comment_count = cursor.fetchone()[0]
+        
+        # 获取最新文档
+        cursor.execute('''
+            SELECT d.*, u.username 
+            FROM documents d 
+            LEFT JOIN users u ON d.author_id = u.id 
+            ORDER BY d.created_at DESC
+            LIMIT 10
+        ''')
+        recent_docs = cursor.fetchall()
+        
+        conn.close()
+        
+        return render_template('admin/dashboard.html', 
+                             user_count=user_count,
+                             doc_count=doc_count,
+                             comment_count=comment_count,
+                             recent_docs=recent_docs)
+    except Exception as e:
+        print(f"Admin dashboard error: {e}")
+        return jsonify({
+            'error': 'Admin dashboard error',
+            'message': str(e),
+            'user_count': 0,
+            'doc_count': 0,
+            'comment_count': 0,
+            'recent_docs': []
+        }), 500
 
 # 初始化数据库和示例数据
 def init_sample_data():
     """初始化示例数据"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 检查是否已有数据
-    cursor.execute('SELECT COUNT(*) FROM users')
-    user_count = cursor.fetchone()[0]
-    
-    if user_count == 0:
-        # 创建默认管理员
-        admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
-        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@ros2wiki.com')
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
         
-        admin_hash = generate_password_hash(admin_password)
+        # 检查是否已有数据
+        cursor.execute('SELECT COUNT(*) FROM users')
+        user_count = cursor.fetchone()[0]
         
-        if app.config['DATABASE_URL']:
-            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
-                          (admin_username, admin_email, admin_hash, True))
-            # 添加示例用户
-            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
-                          ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), False))
-            # 添加示例文档
-            cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (%s, %s, %s, %s)',
-                          ('ROS2快速入门', '''# ROS2快速入门
+        if user_count == 0:
+            # 创建默认管理员
+            admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            admin_email = os.environ.get('ADMIN_EMAIL', 'admin@ros2wiki.com')
+            
+            admin_hash = generate_password_hash(admin_password)
+            
+            if use_postgresql:
+                cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
+                              (admin_username, admin_email, admin_hash, True))
+                # 添加示例用户
+                cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
+                              ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), False))
+                # 添加示例文档
+                cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (%s, %s, %s, %s)',
+                              ('ROS2快速入门', sample_content, 1, 'ROS2基础'))
+            else:
+                cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+                              (admin_username, admin_email, admin_hash, 1))
+                cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+                              ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), 0))
+                cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)',
+                              ('ROS2快速入门', sample_content, 1, 'ROS2基础'))
+            
+            conn.commit()
+            print("示例数据初始化完成")
+        
+        conn.close()
+    except Exception as e:
+        print(f"示例数据初始化错误: {e}")
+
+# 示例内容
+sample_content = '''# ROS2快速入门
 
 欢迎来到ROS2世界！这是一个入门指南。
 
@@ -444,47 +484,7 @@ cd ~/ros2_ws
 colcon build
 ```
 
-开始您的ROS2学习之旅！
-''', 1, 'ROS2基础'))
-        else:
-            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-                          (admin_username, admin_email, admin_hash, 1))
-            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-                          ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), 0))
-            cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)',
-                          ('ROS2快速入门', '''# ROS2快速入门
-
-欢迎来到ROS2世界！这是一个入门指南。
-
-## 安装ROS2
-
-```bash
-sudo apt update
-sudo apt install ros-humble-desktop
-```
-
-## 配置环境
-
-```bash
-source /opt/ros/humble/setup.bash
-echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
-```
-
-## 创建工作空间
-
-```bash
-mkdir -p ~/ros2_ws/src
-cd ~/ros2_ws
-colcon build
-```
-
-开始您的ROS2学习之旅！
-''', 1, 'ROS2基础'))
-        
-        conn.commit()
-        print("示例数据初始化完成")
-    
-    conn.close()
+开始您的ROS2学习之旅！'''
 
 # 应用初始化
 try:
