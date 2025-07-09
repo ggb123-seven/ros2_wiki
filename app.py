@@ -5,11 +5,16 @@ from functools import wraps
 import sqlite3
 import markdown
 import os
+import psycopg2
+from urllib.parse import urlparse
 from datetime import datetime
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
-app.config['DATABASE'] = 'ros2_wiki.db'
+
+# 环境变量配置
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
+app.config['DATABASE_URL'] = os.environ.get('DATABASE_URL')
+app.config['DATABASE'] = 'ros2_wiki.db' if not app.config['DATABASE_URL'] else None
 
 # 初始化Flask-Login
 login_manager = LoginManager()
@@ -25,57 +30,111 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    conn = sqlite3.connect(app.config['DATABASE'])
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    if app.config['DATABASE_URL']:
+        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+    else:
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
     user = cursor.fetchone()
     conn.close()
     if user:
         return User(user[0], user[1], user[2], user[4] if len(user) > 4 else False)
     return None
 
+def get_db_connection():
+    """获取数据库连接"""
+    if app.config['DATABASE_URL']:
+        # PostgreSQL连接
+        return psycopg2.connect(app.config['DATABASE_URL'])
+    else:
+        # SQLite连接
+        return sqlite3.connect(app.config['DATABASE'])
+
 def init_db():
-    conn = sqlite3.connect(app.config['DATABASE'])
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     # 用户表
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    if app.config['DATABASE_URL']:
+        # PostgreSQL语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # SQLite语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
     
     # 文档表
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            author_id INTEGER,
-            category TEXT DEFAULT 'ROS2基础',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (author_id) REFERENCES users (id)
-        )
-    ''')
+    if app.config['DATABASE_URL']:
+        # PostgreSQL语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS documents (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                author_id INTEGER REFERENCES users(id),
+                category TEXT DEFAULT 'ROS2基础',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # SQLite语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                author_id INTEGER,
+                category TEXT DEFAULT 'ROS2基础',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (author_id) REFERENCES users (id)
+            )
+        ''')
     
     # 评论表
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            user_id INTEGER,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (document_id) REFERENCES documents (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
+    if app.config['DATABASE_URL']:
+        # PostgreSQL语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                document_id INTEGER REFERENCES documents(id),
+                user_id INTEGER REFERENCES users(id),
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # SQLite语法
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER,
+                user_id INTEGER,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (document_id) REFERENCES documents (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
     
     conn.commit()
     conn.close()
@@ -94,7 +153,7 @@ def admin_required(f):
 # 路由
 @app.route('/')
 def index():
-    conn = sqlite3.connect(app.config['DATABASE'])
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT d.*, u.username 
@@ -112,9 +171,12 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect(app.config['DATABASE'])
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        if app.config['DATABASE_URL']:
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+        else:
+            cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
         user = cursor.fetchone()
         conn.close()
         
@@ -344,24 +406,40 @@ init_db()
 
 # 如果数据库为空，添加示例数据
 try:
-    conn = sqlite3.connect(app.config['DATABASE'])
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT COUNT(*) FROM users')
     user_count = cursor.fetchone()[0]
     
     if user_count == 0:
         # 添加默认用户
-        admin_hash = generate_password_hash('admin123')
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+        
+        admin_hash = generate_password_hash(admin_password)
         user_hash = generate_password_hash('user123')
         
-        cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-                      ('admin', 'admin@example.com', admin_hash, 1))
-        cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-                      ('ros2_learner', 'user@example.com', user_hash, 0))
-        
-        # 添加示例文档
-        cursor.execute('''INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)''',
-                      ('ROS2快速入门', '# ROS2快速入门\n\n欢迎来到ROS2世界！', 1, 'ROS2基础'))
+        if app.config['DATABASE_URL']:
+            # PostgreSQL语法
+            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
+                          (admin_username, admin_email, admin_hash, True))
+            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
+                          ('ros2_learner', 'user@example.com', user_hash, False))
+            
+            # 添加示例文档
+            cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (%s, %s, %s, %s)',
+                          ('ROS2快速入门', '# ROS2快速入门\n\n欢迎来到ROS2世界！', 1, 'ROS2基础'))
+        else:
+            # SQLite语法
+            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+                          (admin_username, admin_email, admin_hash, 1))
+            cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+                          ('ros2_learner', 'user@example.com', user_hash, 0))
+            
+            # 添加示例文档
+            cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)',
+                          ('ROS2快速入门', '# ROS2快速入门\n\n欢迎来到ROS2世界！', 1, 'ROS2基础'))
         
         conn.commit()
         print("数据库初始化完成")
