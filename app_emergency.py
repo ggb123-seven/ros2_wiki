@@ -140,7 +140,7 @@ def admin_required(f):
 # 路由定义
 @app.route('/')
 def index():
-    """首页"""
+    """首页 - 直接HTML渲染"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -154,9 +154,136 @@ def index():
         documents = cursor.fetchall()
         conn.close()
         
-        return render_template('index.html', documents=documents)
+        # 生成完整的首页HTML
+        html = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>ROS2 Wiki - 首页</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>
+            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="/">🤖 ROS2 Wiki</a>
+                    <div class="navbar-nav ms-auto">
+        '''
+        
+        if current_user.is_authenticated:
+            html += f'''
+                        <span class="navbar-text me-3">欢迎, {current_user.username}!</span>
+                        <a class="nav-link" href="/logout">退出登录</a>
+            '''
+            if current_user.is_admin:
+                html += '<a class="nav-link" href="/admin">管理后台</a>'
+        else:
+            html += '''
+                        <a class="nav-link" href="/login">登录</a>
+            '''
+        
+        html += '''
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="container mt-4">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h1>ROS2 技术教程</h1>
+                        <p class="lead">学习ROS2机器人操作系统，掌握现代机器人开发技术</p>
+                        
+                        <div class="row">
+        '''
+        
+        if documents:
+            for doc in documents:
+                html += f'''
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{doc[1]}</h5>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                分类：{doc[4] if len(doc) > 4 else 'N/A'} | 
+                                                作者：{doc[7] if len(doc) > 7 and doc[7] else '管理员'} | 
+                                                发布时间：{str(doc[5])[:16] if len(doc) > 5 else 'N/A'}
+                                            </small>
+                                        </p>
+                                        <a href="/document/{doc[0]}" class="btn btn-primary">阅读教程</a>
+                                    </div>
+                                </div>
+                            </div>
+                '''
+        else:
+            html += '''
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h4>欢迎来到ROS2 Wiki！</h4>
+                                    <p>这里将提供丰富的ROS2教程内容，包括：</p>
+                                    <ul>
+                                        <li>ROS2基础概念和架构</li>
+                                        <li>节点（Node）开发</li>
+                                        <li>话题（Topic）通信</li>
+                                        <li>服务（Service）调用</li>
+                                        <li>参数服务器使用</li>
+                                        <li>Launch文件编写</li>
+                                        <li>自定义消息和服务</li>
+                                        <li>机器人导航和SLAM</li>
+                                    </ul>
+                                    <p>请管理员添加教程内容。</p>
+                                </div>
+                            </div>
+            '''
+        
+        html += '''
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>ROS2学习路径</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">🚀 ROS2环境搭建</li>
+                                    <li class="list-group-item">📦 包管理和工作空间</li>
+                                    <li class="list-group-item">🔄 节点通信机制</li>
+                                    <li class="list-group-item">🛠️ 常用工具和调试</li>
+                                    <li class="list-group-item">🤖 机器人应用开发</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        return html
+        
     except Exception as e:
-        return f"<h1>欢迎来到ROS2 Wiki</h1><p>数据库错误: {e}</p>"
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>ROS2 Wiki - 错误</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-4">
+                <div class="alert alert-danger">
+                    <h1>欢迎来到ROS2 Wiki</h1>
+                    <p>数据库错误: {e}</p>
+                    <a href="/health" class="btn btn-info">系统状态</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
 
 @app.route('/health')
 def health():
@@ -169,7 +296,7 @@ def health():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """用户登录"""
+    """用户登录 - 直接HTML渲染"""
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -192,18 +319,63 @@ def login():
         else:
             flash('用户名或密码错误')
     
-    try:
-        return render_template('login.html')
-    except:
-        return f'''
-        <form method="post">
-            <h2>登录</h2>
-            <input type="text" name="username" placeholder="用户名" required>
-            <input type="password" name="password" placeholder="密码" required>
-            <button type="submit">登录</button>
-        </form>
-        <p>管理员: admin/admin123</p>
-        '''
+    # 生成登录页面HTML
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>登录 - ROS2 Wiki</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/">🤖 ROS2 Wiki</a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/">首页</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>用户登录</h3>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">用户名</label>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">密码</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">登录</button>
+                            </form>
+                            
+                            <div class="mt-3">
+                                <div class="alert alert-info">
+                                    <h5>默认管理员账户</h5>
+                                    <p>用户名: <strong>admin</strong></p>
+                                    <p>密码: <strong>admin123</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    return html
 
 @app.route('/logout')
 @login_required
@@ -322,7 +494,142 @@ def admin_dashboard():
         </div>
         '''
 
-# 初始化数据库和示例数据
+@app.route('/document/<int:doc_id>')
+def view_document(doc_id):
+    """查看文档详情 - 直接HTML渲染"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+        
+        # 获取文档
+        if use_postgresql:
+            cursor.execute('''
+                SELECT d.*, u.username 
+                FROM documents d 
+                LEFT JOIN users u ON d.author_id = u.id 
+                WHERE d.id = %s
+            ''', (doc_id,))
+        else:
+            cursor.execute('''
+                SELECT d.*, u.username 
+                FROM documents d 
+                LEFT JOIN users u ON d.author_id = u.id 
+                WHERE d.id = ?
+            ''', (doc_id,))
+        document = cursor.fetchone()
+        
+        if not document:
+            conn.close()
+            return '''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>文档不存在 - ROS2 Wiki</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body>
+                <div class="container mt-4">
+                    <div class="alert alert-warning">
+                        <h4>文档不存在</h4>
+                        <a href="/" class="btn btn-primary">返回首页</a>
+                    </div>
+                </div>
+            </body>
+            </html>
+            '''
+        
+        conn.close()
+        
+        # 渲染Markdown内容
+        content_html = markdown.markdown(document[2]) if document[2] else '没有内容'
+        
+        html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{document[1]} - ROS2 Wiki</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>
+            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="/">🤖 ROS2 Wiki</a>
+                    <div class="navbar-nav ms-auto">
+                        <a class="nav-link" href="/">首页</a>
+        '''
+        
+        if current_user.is_authenticated:
+            html += f'''
+                        <span class="navbar-text me-3">欢迎, {current_user.username}!</span>
+                        <a class="nav-link" href="/logout">退出登录</a>
+            '''
+            if current_user.is_admin:
+                html += '<a class="nav-link" href="/admin">管理后台</a>'
+        else:
+            html += '<a class="nav-link" href="/login">登录</a>'
+        
+        html += f'''
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="container mt-4">
+                <div class="row">
+                    <div class="col-md-8">
+                        <article>
+                            <h1>{document[1]}</h1>
+                            <p class="text-muted">
+                                分类：{document[4] if len(document) > 4 else 'N/A'} | 
+                                作者：{document[7] if len(document) > 7 and document[7] else '管理员'} | 
+                                发布时间：{str(document[5])[:16] if len(document) > 5 else 'N/A'}
+                            </p>
+                            <hr>
+                            <div class="content">
+                                {content_html}
+                            </div>
+                        </article>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>相关操作</h5>
+                            </div>
+                            <div class="card-body">
+                                <a href="/" class="btn btn-primary btn-sm">返回首页</a>
+                                <a href="/health" class="btn btn-info btn-sm">系统状态</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        return html
+        
+    except Exception as e:
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>文档错误 - ROS2 Wiki</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-4">
+                <div class="alert alert-danger">
+                    <h4>文档加载错误</h4>
+                    <p>错误: {str(e)}</p>
+                    <a href="/" class="btn btn-primary">返回首页</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
 def init_sample_data():
     """初始化示例数据"""
     try:
