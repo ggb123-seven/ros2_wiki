@@ -7,10 +7,17 @@ ROS2 Wiki - 完整版Flask应用
 import os
 import sys
 import sqlite3
-import psycopg2
 from datetime import datetime
 from urllib.parse import urlparse
 from functools import wraps
+
+# 条件导入psycopg2，避免在没有PostgreSQL时出错
+try:
+    import psycopg2
+    HAS_POSTGRESQL = True
+except ImportError:
+    HAS_POSTGRESQL = False
+    print("Warning: psycopg2 not available, using SQLite only")
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -42,7 +49,9 @@ class User(UserMixin):
 def load_user(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    if app.config['DATABASE_URL']:
+    use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+    
+    if use_postgresql:
         cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
     else:
         cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
@@ -54,20 +63,25 @@ def load_user(user_id):
 
 def get_db_connection():
     """获取数据库连接"""
-    if app.config['DATABASE_URL']:
+    if app.config['DATABASE_URL'] and HAS_POSTGRESQL:
         # PostgreSQL连接
         return psycopg2.connect(app.config['DATABASE_URL'])
     else:
-        # SQLite连接
-        return sqlite3.connect(app.config['DATABASE'])
+        # SQLite连接（回退选项）
+        if app.config['DATABASE_URL'] and not HAS_POSTGRESQL:
+            print("Warning: PostgreSQL URL provided but psycopg2 not available, using SQLite")
+        return sqlite3.connect(app.config['DATABASE'] or 'ros2_wiki.db')
 
 def init_database():
     """初始化数据库"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 判断是否使用PostgreSQL
+    use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+    
     # 用户表
-    if app.config['DATABASE_URL']:
+    if use_postgresql:
         # PostgreSQL语法
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -93,7 +107,7 @@ def init_database():
         ''')
     
     # 文档表
-    if app.config['DATABASE_URL']:
+    if use_postgresql:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS documents (
                 id SERIAL PRIMARY KEY,
@@ -120,7 +134,7 @@ def init_database():
         ''')
     
     # 评论表
-    if app.config['DATABASE_URL']:
+    if use_postgresql:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS comments (
                 id SERIAL PRIMARY KEY,
