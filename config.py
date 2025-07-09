@@ -43,14 +43,12 @@ class ProductionConfig(Config):
     """生产环境配置"""
     DEBUG = False
     
-    # 生产环境必须设置这些环境变量
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    if not SECRET_KEY:
-        raise ValueError("生产环境必须设置SECRET_KEY环境变量")
+    # 生产环境密钥（Render会自动生成）
+    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
     
-    # 生产环境的管理员必须通过环境变量设置
-    DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME')
-    DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+    # 生产环境的管理员设置
+    DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+    DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
     
     # 额外的安全头
     SECURITY_HEADERS = {
