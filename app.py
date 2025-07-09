@@ -370,7 +370,7 @@ def view_document(doc_id):
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
-    """管理员后台"""
+    """管理员后台 - 临时HTML版本"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -397,21 +397,157 @@ def admin_dashboard():
         
         conn.close()
         
-        return render_template('admin/dashboard.html', 
-                             user_count=user_count,
-                             doc_count=doc_count,
-                             comment_count=comment_count,
-                             recent_docs=recent_docs)
+        # 临时HTML渲染 - 避免模板问题
+        html_content = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>ROS2 Wiki - 管理员后台</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <nav class="navbar navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="/">🤖 ROS2 Wiki 管理后台</a>
+                    <div class="navbar-nav ms-auto">
+                        <a class="nav-link text-white" href="/logout">退出登录</a>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="container mt-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">用户数量</h5>
+                                <h2 class="text-primary">{user_count}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">文档数量</h5>
+                                <h2 class="text-success">{doc_count}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">评论数量</h5>
+                                <h2 class="text-info">{comment_count}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">系统状态</h5>
+                                <h2 class="text-warning">✅ 运行中</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h3>最新文档</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>标题</th>
+                                        <th>作者</th>
+                                        <th>分类</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+        '''
+        
+        # 添加文档行
+        for doc in recent_docs:
+            html_content += f'''
+                                    <tr>
+                                        <td>{doc[0]}</td>
+                                        <td><a href="/document/{doc[0]}">{doc[1]}</a></td>
+                                        <td>{doc[7] if len(doc) > 7 and doc[7] else 'Unknown'}</td>
+                                        <td>{doc[4] if len(doc) > 4 else 'N/A'}</td>
+                                        <td>{doc[5] if len(doc) > 5 else 'N/A'}</td>
+                                        <td>
+                                            <a href="/document/{doc[0]}" class="btn btn-sm btn-outline-primary">查看</a>
+                                        </td>
+                                    </tr>
+            '''
+        
+        html_content += '''
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h3>快速操作</h3>
+                        <div class="d-flex gap-2">
+                            <a href="/health" class="btn btn-info">系统健康检查</a>
+                            <a href="/debug" class="btn btn-warning">调试信息</a>
+                            <a href="/" class="btn btn-secondary">返回首页</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        return html_content
+        
     except Exception as e:
-        print(f"Admin dashboard error: {e}")
-        return jsonify({
-            'error': 'Admin dashboard error',
-            'message': str(e),
-            'user_count': 0,
-            'doc_count': 0,
-            'comment_count': 0,
-            'recent_docs': []
-        }), 500
+        # 详细错误信息
+        import traceback
+        error_details = traceback.format_exc()
+        
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>管理员后台 - 错误详情</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-4">
+                <div class="alert alert-danger">
+                    <h4>管理员后台错误</h4>
+                    <p><strong>错误类型:</strong> {type(e).__name__}</p>
+                    <p><strong>错误消息:</strong> {str(e)}</p>
+                    <p><strong>用户:</strong> {current_user.username if current_user.is_authenticated else 'Anonymous'}</p>
+                    <p><strong>数据库:</strong> {'PostgreSQL' if (app.config.get('DATABASE_URL') and HAS_POSTGRESQL) else 'SQLite'}</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>详细错误信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px;">{error_details}</pre>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="/" class="btn btn-primary">返回首页</a>
+                    <a href="/health" class="btn btn-info">系统状态</a>
+                    <a href="/debug" class="btn btn-warning">调试信息</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        ''', 500
 
 # 初始化数据库和示例数据
 def init_sample_data():
