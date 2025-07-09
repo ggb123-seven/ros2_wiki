@@ -4,7 +4,7 @@ services:
     env: python
     region: oregon
     buildCommand: pip install -r requirements_minimal.txt
-    startCommand: python app_minimal.py
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app_minimal:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
