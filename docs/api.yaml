@@ -1,0 +1,326 @@
+openapi: 3.0.0
+info:
+  title: ROS2 Wiki API
+  description: RESTful API for ROS2 Wiki application
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@ros2wiki.com
+
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+  - url: https://api.ros2wiki.com/v1
+    description: Production server
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+    
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        content_html:
+          type: string
+          description: Markdown rendered as HTML
+        category:
+          type: string
+        author:
+          $ref: '#/components/schemas/User'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        view_count:
+          type: integer
+        comment_count:
+          type: integer
+        url:
+          type: string
+    
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        author:
+          $ref: '#/components/schemas/User'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  /documents:
+    get:
+      summary: Get documents list
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      per_page:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                      next:
+                        type: string
+                        nullable: true
+                      prev:
+                        type: string
+                        nullable: true
+    
+    post:
+      summary: Create new document
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+                - category
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Document'
+                  message:
+                    type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /documents/{id}:
+    get:
+      summary: Get document by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Document'
+                  comments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+        '404':
+          description: Document not found
+    
+    put:
+      summary: Update document
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Document updated
+        '403':
+          description: Forbidden
+        '404':
+          description: Document not found
+    
+    delete:
+      summary: Delete document
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Document deleted
+        '403':
+          description: Forbidden
+        '404':
+          description: Document not found
+
+  /documents/{id}/comments:
+    post:
+      summary: Create comment
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Comment created
+        '400':
+          description: Bad request
+        '404':
+          description: Document not found
+
+  /stats:
+    get:
+      summary: Get site statistics
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      total_documents:
+                        type: integer
+                      total_users:
+                        type: integer
+                      total_comments:
+                        type: integer
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category:
+                              type: string
+                            count:
+                              type: integer
+                            avg_views:
+                              type: number
+                            latest_doc:
+                              type: string
+                              format: date-time

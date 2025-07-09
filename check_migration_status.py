@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""
+检查数据库迁移状态
+"""
+import os
+import sys
+from sqlalchemy import create_engine, text
+import sqlite3
+
+# 颜色输出
+class Colors:
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BLUE = '\033[94m'
+    END = '\033[0m'
+
+def check_sqlite():
+    """检查SQLite数据库"""
+    print(f"\n{Colors.BLUE}=== SQLite数据库检查 ==={Colors.END}")
+    
+    if os.path.exists('ros2_wiki.db'):
+        try:
+            conn = sqlite3.connect('ros2_wiki.db')
+            cursor = conn.cursor()
+            
+            # 检查表
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            print(f"{Colors.GREEN}✓ SQLite数据库存在{Colors.END}")
+            print(f"  表: {[t[0] for t in tables]}")
+            
+            # 统计数据
+            stats = {}
+            for table in ['users', 'documents', 'comments']:
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = cursor.fetchone()[0]
+                    stats[table] = count
+                except:
+                    stats[table] = 0
+            
+            print(f"  数据统计:")
+            for table, count in stats.items():
+                print(f"    - {table}: {count} 条记录")
+            
+            conn.close()
+            return True, stats
+        except Exception as e:
+            print(f"{Colors.RED}✗ SQLite数据库损坏: {str(e)}{Colors.END}")
+            return False, {}
+    else:
+        print(f"{Colors.YELLOW}⚠ SQLite数据库不存在{Colors.END}")
+        return False, {}
+
+def check_postgresql():
+    """检查PostgreSQL数据库"""
+    print(f"\n{Colors.BLUE}=== PostgreSQL数据库检查 ==={Colors.END}")
+    
+    # 从环境变量或.env文件获取数据库URL
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url and os.path.exists('.env'):
+        # 简单解析.env文件
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.startswith('DATABASE_URL='):
+                    db_url = line.split('=', 1)[1].strip()
+                    break
+    
+    if not db_url:
+        print(f"{Colors.RED}✗ 未找到DATABASE_URL配置{Colors.END}")
+        return False, {}
+    
+    print(f"  连接URL: {db_url}")
+    
+    try:
+        engine = create_engine(db_url)
+        with engine.connect() as conn:
+            # 检查连接
+            result = conn.execute(text("SELECT version()"))
+            version = result.fetchone()[0]
+            print(f"{Colors.GREEN}✓ PostgreSQL连接成功{Colors.END}")
+            print(f"  版本: {version.split(',')[0]}")
+            
+            # 检查表
+            result = conn.execute(text("""
+                SELECT tablename FROM pg_tables 
+                WHERE schemaname = 'public' 
+                AND tablename IN ('users', 'documents', 'comments')
+            """))
+            tables = [row[0] for row in result]
+            print(f"  表: {tables}")
+            
+            # 统计数据
+            stats = {}
+            for table in ['users', 'documents', 'comments']:
+                if table in tables:
+                    result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                    count = result.fetchone()[0]
+                    stats[table] = count
+                else:
+                    stats[table] = 0
+            
+            print(f"  数据统计:")
+            for table, count in stats.items():
+                print(f"    - {table}: {count} 条记录")
+            
+            # 检查全文搜索功能
+            try:
+                result = conn.execute(text("""
+                    SELECT COUNT(*) FROM documents 
+                    WHERE search_vector IS NOT NULL
+                """))
+                indexed = result.fetchone()[0]
+                if indexed > 0:
+                    print(f"{Colors.GREEN}✓ 全文搜索已启用 ({indexed} 个文档已索引){Colors.END}")
+                else:
+                    print(f"{Colors.YELLOW}⚠ 全文搜索未配置{Colors.END}")
+            except:
+                pass
+            
+            return True, stats
+    except Exception as e:
+        print(f"{Colors.RED}✗ PostgreSQL连接失败: {str(e)}{Colors.END}")
+        return False, {}
+
+def compare_databases(sqlite_stats, pg_stats):
+    """比较两个数据库的数据"""
+    print(f"\n{Colors.BLUE}=== 数据库比较 ==={Colors.END}")
+    
+    if not sqlite_stats and not pg_stats:
+        print(f"{Colors.YELLOW}⚠ 两个数据库都不存在或为空{Colors.END}")
+        return
+    
+    for table in ['users', 'documents', 'comments']:
+        sqlite_count = sqlite_stats.get(table, 0)
+        pg_count = pg_stats.get(table, 0)
+        
+        if sqlite_count == pg_count:
+            if sqlite_count > 0:
+                print(f"{Colors.GREEN}✓ {table}: 数据一致 ({sqlite_count} 条){Colors.END}")
+            else:
+                print(f"{Colors.YELLOW}⚠ {table}: 无数据{Colors.END}")
+        else:
+            print(f"{Colors.RED}✗ {table}: 数据不一致 (SQLite: {sqlite_count}, PostgreSQL: {pg_count}){Colors.END}")
+
+def main():
+    print(f"{Colors.BLUE}{'='*50}{Colors.END}")
+    print(f"{Colors.BLUE}ROS2 Wiki 数据库迁移状态检查{Colors.END}")
+    print(f"{Colors.BLUE}{'='*50}{Colors.END}")
+    
+    # 检查SQLite
+    sqlite_ok, sqlite_stats = check_sqlite()
+    
+    # 检查PostgreSQL
+    pg_ok, pg_stats = check_postgresql()
+    
+    # 比较数据
+    if sqlite_ok or pg_ok:
+        compare_databases(sqlite_stats, pg_stats)
+    
+    # 迁移建议
+    print(f"\n{Colors.BLUE}=== 建议 ==={Colors.END}")
+    
+    if sqlite_ok and not pg_ok:
+        print(f"{Colors.YELLOW}• PostgreSQL未配置或连接失败{Colors.END}")
+        print(f"  1. 确保PostgreSQL服务正在运行")
+        print(f"  2. 检查.env文件中的DATABASE_URL配置")
+        print(f"  3. 运行: ./migrate_helper.sh 选择选项1初始化数据库")
+    
+    elif sqlite_ok and pg_ok:
+        sqlite_total = sum(sqlite_stats.values())
+        pg_total = sum(pg_stats.values())
+        
+        if pg_total == 0 and sqlite_total > 0:
+            print(f"{Colors.YELLOW}• SQLite有数据但PostgreSQL为空{Colors.END}")
+            print(f"  运行: ./migrate_helper.sh 选择选项2进行数据迁移")
+        elif pg_total < sqlite_total:
+            print(f"{Colors.YELLOW}• PostgreSQL数据不完整{Colors.END}")
+            print(f"  可能需要重新迁移: ./migrate_helper.sh 选择选项2")
+        elif pg_total >= sqlite_total:
+            print(f"{Colors.GREEN}• 数据迁移似乎已完成{Colors.END}")
+            print(f"  可以开始使用PostgreSQL版本: python3 app_postgres.py")
+    
+    elif not sqlite_ok and pg_ok:
+        print(f"{Colors.GREEN}• 正在使用PostgreSQL{Colors.END}")
+        print(f"  继续使用: python3 app_postgres.py")
+    
+    else:
+        print(f"{Colors.YELLOW}• 需要初始化数据库{Colors.END}")
+        print(f"  运行: ./migrate_helper.sh 选择选项1")
+    
+    print(f"\n{Colors.BLUE}{'='*50}{Colors.END}")
+
+if __name__ == '__main__':
+    main()

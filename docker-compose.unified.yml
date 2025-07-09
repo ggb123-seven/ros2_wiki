@@ -1,0 +1,126 @@
+# 统一部署配置文件
+
+version: '3.8'
+
+services:
+  # 主应用服务
+  ros2-wiki:
+    build: .
+    container_name: ros2-wiki-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/static/uploads
+      - ./data:/app/data
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL 数据库
+  db:
+    image: postgres:15-alpine
+    container_name: ros2-wiki-db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ros2_wiki}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存和会话存储
+  redis:
+    image: redis:7-alpine
+    container_name: ros2-wiki-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nginx 反向代理 (生产环境)
+  nginx:
+    image: nginx:alpine
+    container_name: ros2-wiki-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/sites-available:/etc/nginx/sites-available
+      - ./ssl:/etc/nginx/ssl
+      - ./static:/var/www/static
+    depends_on:
+      - ros2-wiki
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # 数据备份服务
+  backup:
+    image: postgres:15-alpine
+    container_name: ros2-wiki-backup
+    volumes:
+      - ./backups:/backups
+      - backup_scripts:/scripts
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=${POSTGRES_DB:-ros2_wiki}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres123}
+    command: >
+      sh -c "
+        while true; do
+          echo 'Creating backup...'
+          pg_dump -h $$POSTGRES_HOST -U $$POSTGRES_USER -d $$POSTGRES_DB > /backups/backup-$$(date +%Y%m%d-%H%M%S).sql
+          echo 'Backup created'
+          find /backups -name '*.sql' -mtime +7 -delete
+          sleep 86400
+        done
+      "
+    depends_on:
+      - db
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backup_scripts:
+    driver: local
+
+networks:
+  default:
+    name: ros2-wiki-network
