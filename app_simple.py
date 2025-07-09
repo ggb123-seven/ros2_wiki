@@ -1,142 +1,102 @@
 #!/usr/bin/env python3
 """
-ROS2 Wiki 简化版应用
-用于测试ngrok连接
+ROS2 Wiki - Flask应用入口文件
+专门为Render部署优化
 """
+
+import os
 import sys
-import os
+from flask import Flask
 
-# 添加本地库路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'libs'))
-
-try:
-    from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-    print("✅ 使用本地简化版Flask")
-except ImportError:
-    print("❌ Flask导入失败")
-    sys.exit(1)
-
-import sqlite3
-import os
-from datetime import datetime
-
+# 创建Flask应用实例 - Gunicorn需要这个名字
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
-app.config['DATABASE'] = 'simple_wiki.db'
 
-def init_db():
-    """初始化数据库"""
-    conn = sqlite3.connect(app.config['DATABASE'])
-    cursor = conn.cursor()
-    
-    # 创建简单的文档表
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # 插入示例数据
-    cursor.execute('SELECT COUNT(*) FROM documents')
-    if cursor.fetchone()[0] == 0:
-        sample_docs = [
-            ("ROS2 入门指南", "# ROS2 入门指南\n\n欢迎来到ROS2世界！这是一个机器人操作系统。"),
-            ("安装教程", "# ROS2 安装教程\n\n1. 更新系统\n2. 安装ROS2\n3. 设置环境变量"),
-            ("基础概念", "# ROS2 基础概念\n\n- 节点(Node)\n- 主题(Topic)\n- 服务(Service)\n- 参数(Parameter)")
-        ]
-        
-        for title, content in sample_docs:
-            cursor.execute('INSERT INTO documents (title, content) VALUES (?, ?)', (title, content))
-    
-    conn.commit()
-    conn.close()
+# 基本配置
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'render-deployment-key')
 
 @app.route('/')
-def index():
-    """首页"""
-    conn = sqlite3.connect(app.config['DATABASE'])
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM documents ORDER BY created_at DESC')
-    documents = cursor.fetchall()
-    conn.close()
-    
-    # 简化版模板渲染
-    html = '''
+def home():
+    return '''
     <!DOCTYPE html>
     <html>
     <head>
         <title>ROS2 Wiki</title>
         <style>
             body { font-family: Arial, sans-serif; margin: 40px; }
-            .header { background: #0066cc; color: white; padding: 20px; margin-bottom: 20px; }
-            .doc-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
-            .doc-title { font-size: 18px; font-weight: bold; color: #0066cc; }
-            .doc-content { margin-top: 10px; color: #666; }
-            .footer { margin-top: 40px; text-align: center; color: #666; }
+            .success { color: #28a745; }
+            .info { color: #007bff; }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>🤖 ROS2 Wiki</h1>
-            <p>机器人操作系统文档中心</p>
-        </div>
-        
-        <h2>📚 文档列表</h2>
-    '''
-    
-    for doc in documents:
-        html += f'''
-        <div class="doc-item">
-            <div class="doc-title">{doc[1]}</div>
-            <div class="doc-content">{doc[2][:100]}...</div>
-            <small>创建时间: {doc[3]}</small>
-        </div>
-        '''
-    
-    html += '''
-        <div class="footer">
-            <p>🎉 ROS2 Wiki 通过 ngrok 自动重连正在运行！</p>
-            <p>💡 这是一个简化版本，用于测试 ngrok 连接稳定性</p>
-        </div>
+        <h1 class="success">🎉 ROS2 Wiki 部署成功!</h1>
+        <p class="info">应用正在Render平台上运行</p>
+        <ul>
+            <li><a href="/health">健康检查</a></li>
+            <li><a href="/debug">调试信息</a></li>
+        </ul>
     </body>
     </html>
     '''
-    
-    return html
-
-@app.route('/api/status')
-def api_status():
-    """API状态检查"""
-    return jsonify({
-        "status": "running",
-        "message": "ROS2 Wiki API 正常运行",
-        "timestamp": datetime.now().isoformat()
-    })
 
 @app.route('/health')
-def health_check():
-    """健康检查"""
-    return "OK"
+def health():
+    """健康检查端点"""
+    return {
+        'status': 'ok', 
+        'message': '应用运行正常',
+        'platform': 'Render',
+        'python_version': sys.version
+    }
+
+@app.route('/debug')
+def debug():
+    """调试信息页面"""
+    env_vars = [
+        'FLASK_ENV', 'SECRET_KEY', 'DATABASE_URL', 
+        'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'PORT'
+    ]
+    
+    env_info = []
+    for var in env_vars:
+        value = os.environ.get(var, 'NOT_SET')
+        # 隐藏敏感信息
+        if any(word in var for word in ['PASSWORD', 'SECRET', 'KEY']):
+            value = f'[SET - {len(value)} chars]' if value != 'NOT_SET' else 'NOT_SET'
+        env_info.append(f"{var}: {value}")
+    
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ROS2 Wiki - 调试信息</title>
+        <style>
+            body {{ font-family: monospace; margin: 20px; }}
+            .debug-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; }}
+        </style>
+    </head>
+    <body>
+        <h2>🔧 调试信息</h2>
+        <div class="debug-info">
+            <p><strong>Python版本:</strong> {sys.version}</p>
+            <p><strong>当前目录:</strong> {os.getcwd()}</p>
+            <p><strong>Flask应用:</strong> {app}</p>
+            <h3>环境变量:</h3>
+            <ul>
+                {"".join(f"<li>{info}</li>" for info in env_info)}
+            </ul>
+        </div>
+        <p><a href="/">返回首页</a></p>
+    </body>
+    </html>
+    '''
+
+# 用于本地开发的启动函数
+def main():
+    """本地开发服务器"""
+    print("=== ROS2 Wiki 本地开发服务器 ===")
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 启动地址: http://localhost:{port}")
+    app.run(host='0.0.0.0', port=port, debug=True)
 
 if __name__ == '__main__':
-    print("🚀 启动ROS2 Wiki简化版...")
-    
-    # 初始化数据库
-    if not os.path.exists(app.config['DATABASE']):
-        print("📦 初始化数据库...")
-        init_db()
-    
-    print("✅ 数据库就绪")
-    print("🌍 启动Web服务器...")
-    print("📱 本地访问: http://localhost:5000")
-    print("🔗 API状态: http://localhost:5000/api/status")
-    print("💚 健康检查: http://localhost:5000/health")
-    
-    try:
-        app.run(host='0.0.0.0', port=5000, debug=False)
-    except Exception as e:
-        print(f"❌ 服务启动失败: {e}")
-        sys.exit(1)
+    main()
