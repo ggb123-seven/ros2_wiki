@@ -1,120 +1,149 @@
 {% extends "base.html" %}
 
-{% block title %}{{ document[1] }} - ROS2 Wiki{% endblock %}
+{% block title %}{{ document.title }} - ROS2 Wiki{% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">首页</a></li>
-                <li class="breadcrumb-item active">{{ document[1] }}</li>
+                <li class="breadcrumb-item">{{ document.category }}</li>
+                <li class="breadcrumb-item active">{{ document.title }}</li>
             </ol>
         </nav>
         
-        <article class="card">
-            <div class="card-header">
-                <h1>{{ document[1] }}</h1>
-                <small class="text-muted">
-                    分类：{{ document[4] }} | 
-                    作者：{{ document[7] or '管理员' }} | 
-                    发布时间：{{ document[5][:16] }}
-                </small>
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h1 class="card-title mb-0">{{ document.title }}</h1>
+                {% if current_user and current_user.is_admin %}
+                <a href="{{ url_for('admin_edit_document', doc_id=document.id) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-edit"></i> 编辑
+                </a>
+                {% endif %}
             </div>
             <div class="card-body">
-                <div id="document-content">
-                    <!-- 文档内容将通过JavaScript加载 -->
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-folder"></i> 分类：{{ document.category }} | 
+                        <i class="fas fa-user"></i> 作者：{{ document.username or '管理员' }} | 
+                        <i class="fas fa-calendar"></i> 发布时间：{{ document.created_at[:16] }}
+                        {% if document.updated_at != document.created_at %}
+                        | <i class="fas fa-edit"></i> 更新时间：{{ document.updated_at[:16] }}
+                        {% endif %}
+                    </small>
                 </div>
-            </div>
-        </article>
-        
-        <!-- 评论区 -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h4>评论 ({{ comments|length }})</h4>
-            </div>
-            <div class="card-body">
-                {% if current_user.is_authenticated %}
-                <form method="POST" action="{{ url_for('add_comment', doc_id=document[0]) }}" class="mb-4">
-                    <div class="mb-3">
-                        <label for="content" class="form-label">添加评论</label>
-                        <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">发表评论</button>
-                </form>
-                {% else %}
-                <p class="alert alert-info">请<a href="{{ url_for('login') }}">登录</a>后发表评论</p>
-                {% endif %}
                 
-                {% for comment in comments %}
-                <div class="border-bottom pb-3 mb-3">
-                    <div class="d-flex justify-content-between">
-                        <strong>{{ comment[4] }}</strong>
-                        <small class="text-muted">{{ comment[3][:16] }}</small>
-                    </div>
-                    <p class="mt-2">{{ comment[2] }}</p>
+                <div class="document-content">
+                    {{ html_content|safe }}
                 </div>
-                {% endfor %}
-                
-                {% if not comments %}
-                <p class="text-muted">暂无评论，快来发表第一条评论吧！</p>
-                {% endif %}
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-4">
+        
+        <!-- 评论区 -->
         <div class="card">
             <div class="card-header">
-                <h5>本页导航</h5>
+                <h5><i class="fas fa-comments"></i> 评论 ({{ comments|length }})</h5>
             </div>
             <div class="card-body">
-                <div id="toc">
-                    <!-- 目录将通过JavaScript生成 -->
+                {% if current_user %}
+                <form method="POST" action="{{ url_for('add_comment', doc_id=document.id) }}" class="mb-4">
+                    <div class="mb-3">
+                        <label for="content" class="form-label">发表评论</label>
+                        <textarea class="form-control" id="content" name="content" rows="3" 
+                                placeholder="请输入您的评论..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> 发表评论
+                    </button>
+                </form>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 请先 
+                    <a href="{{ url_for('login') }}">登录</a> 后发表评论
                 </div>
+                {% endif %}
+                
+                {% if comments %}
+                <div class="comments-list">
+                    {% for comment in comments %}
+                    <div class="comment mb-3 p-3 border rounded">
+                        <div class="comment-header d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-primary">
+                                <i class="fas fa-user-circle"></i> {{ comment.username or '匿名用户' }}
+                            </strong>
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> {{ comment.created_at[:16] }}
+                            </small>
+                        </div>
+                        <div class="comment-content">
+                            {{ comment.content|replace('\n', '<br>')|safe }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>还没有评论，来发表第一个评论吧！</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<script>
-// 加载文档内容
-fetch('/api/documents/{{ document[0] }}/render-html')
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('document-content').innerHTML = data.html_content;
-        
-        // 重新高亮代码
-        hljs.highlightAll();
-        
-        // 生成目录
-        generateTOC();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('document-content').innerHTML = '<p class="text-danger">加载失败，请刷新页面重试。</p>';
-    });
-
-// 生成目录
-function generateTOC() {
-    const headers = document.querySelectorAll('#document-content h1, #document-content h2, #document-content h3');
-    const toc = document.getElementById('toc');
-    
-    if (headers.length === 0) {
-        toc.innerHTML = '<p class="text-muted">无标题</p>';
-        return;
-    }
-    
-    let tocHTML = '<ul class="list-unstyled">';
-    headers.forEach((header, index) => {
-        const id = 'heading-' + index;
-        header.id = id;
-        const level = header.tagName.substr(1);
-        const indent = (level - 1) * 20;
-        tocHTML += `<li style="margin-left: ${indent}px;"><a href="#${id}" class="text-decoration-none">${header.textContent}</a></li>`;
-    });
-    tocHTML += '</ul>';
-    toc.innerHTML = tocHTML;
+<style>
+.document-content {
+    line-height: 1.8;
 }
-</script>
+
+.document-content h1, .document-content h2, .document-content h3 {
+    color: #2c3e50;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.document-content h1 {
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+.document-content pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.document-content code {
+    background-color: #f8f9fa;
+    color: #e83e8c;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+}
+
+.document-content pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+.document-content blockquote {
+    border-left: 4px solid #3498db;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+}
+
+.comment {
+    background-color: #f8f9fa;
+}
+
+.comment:hover {
+    background-color: #e9ecef;
+}
+</style>
 {% endblock %}

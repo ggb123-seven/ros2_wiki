@@ -1,151 +1,270 @@
-# ROS2 Wiki - 技术教育网站
+# ROS2 Wiki Enhanced - 现代化机器人学习平台
 
-一个简单而功能完整的ROS2技术教育网站，支持用户注册、文档管理、评论互动等功能。
+一个功能完整、现代化的ROS2技术教育网站，采用轻量级架构，支持用户管理、文档系统、评论互动和管理后台等全套功能。
 
-## 功能特点
+## ✨ 主要特色
 
-- ✅ 用户注册登录系统
-- ✅ ROS2教程文档展示
-- ✅ Markdown文档渲染
-- ✅ 代码语法高亮
-- ✅ 评论系统
-- ✅ 响应式设计
-- ✅ 文档API接口
+### 🚀 核心功能
+- ✅ **现代化UI设计** - Bootstrap 5 + 渐变背景 + FontAwesome图标
+- ✅ **用户认证系统** - 注册/登录/会话管理/权限控制
+- ✅ **文档管理系统** - Markdown渲染/语法高亮/分类管理
+- ✅ **搜索功能** - 全文搜索/关键词高亮/结果统计
+- ✅ **评论系统** - 用户互动/实时评论/评论管理
+- ✅ **管理后台** - 数据统计/用户管理/文档管理/系统监控
 
-## 技术栈
+### 🛠️ 技术特点
+- **零依赖设计** - 仅使用Python标准库，无需安装额外包
+- **轻量级架构** - 单文件部署，SQLite数据库
+- **响应式设计** - 支持桌面、平板、手机访问
+- **云平台友好** - 支持Render、Heroku等云部署
+- **安全可靠** - 密码加密、会话管理、权限验证
 
-- **后端**: Python Flask + SQLite
-- **前端**: HTML/CSS/JavaScript + Bootstrap
-- **认证**: Flask-Login
-- **文档**: Markdown + Pygments
-- **代码高亮**: highlight.js
+### 📊 系统监控
+- **健康检查API** - 系统状态实时监控
+- **性能指标** - 数据库响应时间、内存使用
+- **功能模块检查** - 自动检测所有核心功能
+- **导出报告** - 一键导出系统状态报告
 
-## 快速开始
+## 🚀 快速开始
 
-### 1. 环境准备
-
-```bash
-# 克隆项目
-cd /home/sevenseven/ros2_wiki
-
-# 安装依赖
-pip install -r requirements.txt
-```
-
-### 2. 初始化数据库
+### 本地运行
 
 ```bash
-# 初始化示例数据
-python init_sample_data.py
+# 1. 克隆项目
+git clone <your-repo-url>
+cd ros2_wiki
+
+# 2. 运行服务器（无需安装依赖）
+python3 enhanced_server.py
+
+# 3. 访问应用
+# 本地: http://localhost:8000
+# 管理后台: http://localhost:8000/admin
 ```
 
-### 3. 运行应用
+### 云平台部署 (Render)
 
-```bash
-# 启动开发服务器
-python app.py
-```
+1. Fork此仓库到你的GitHub账户
+2. 在[Render.com](https://render.com)创建新的Web Service
+3. 连接你的GitHub仓库
+4. 设置部署配置：
+   - **Build Command**: `echo "No build required"`
+   - **Start Command**: `python3 enhanced_server.py`
+   - **Environment**: Python 3
 
-访问 http://localhost:5000 即可使用。
+## 📱 默认账户
 
-## 默认账户
+| 角色 | 用户名 | 密码 | 权限 |
+|------|---------|-------|------|
+| 管理员 | `admin` | `admin123` | 完整管理权限 |
+| 普通用户 | `ros2_user` | `user123` | 查看和评论 |
 
-- **管理员**: admin / admin123
-- **用户**: ros2_learner / user123
-
-## 项目结构
+## 🏗️ 项目结构
 
 ```
 ros2_wiki/
-├── app.py                 # 主应用文件
-├── requirements.txt       # 依赖包
-├── init_sample_data.py   # 示例数据初始化
-├── ros2_wiki.db          # SQLite数据库（运行后生成）
-├── static/
-│   ├── css/
-│   │   └── style.css     # 自定义样式
-│   └── js/               # JavaScript文件
-└── templates/
-    ├── base.html         # 基础模板
-    ├── index.html        # 首页
-    ├── login.html        # 登录页
-    ├── register.html     # 注册页
-    └── document.html     # 文档详情页
+├── enhanced_server.py      # 主服务器程序（增强版）
+├── simple_server.py        # 简化版服务器
+├── start.py                # 生产环境启动脚本
+├── requirements.txt        # 依赖声明（空文件，仅标准库）
+├── .gitignore             # Git忽略配置
+├── README.md              # 项目文档
+├── templates/             # HTML模板（Flask风格）
+│   ├── base.html         # 基础模板
+│   ├── admin/            # 管理后台模板
+│   └── ...               # 其他页面模板
+└── simple_wiki.db        # SQLite数据库（运行时生成）
 ```
 
-## API接口
+## 🔧 技术架构
 
-### 文档渲染API
+### 后端技术栈
+- **Python 3** - 核心语言
+- **http.server** - 内置HTTP服务器
+- **SQLite** - 轻量级数据库
+- **hashlib** - 密码加密
+- **datetime** - 时间处理
+- **json/urllib** - 数据处理
 
+### 前端技术栈
+- **Bootstrap 5** - 响应式UI框架
+- **FontAwesome 6** - 图标库
+- **Highlight.js** - 代码语法高亮
+- **Vanilla JavaScript** - 原生JS交互
+
+### 数据库设计
+```sql
+-- 用户表
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE,
+    email TEXT,
+    password_hash TEXT,
+    is_admin BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 文档表
+CREATE TABLE documents (
+    id INTEGER PRIMARY KEY,
+    title TEXT,
+    content TEXT,
+    category TEXT DEFAULT "ROS2基础",
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 评论表
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER,
+    username TEXT,
+    content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
-GET /api/documents/{id}/render-html
+
+## 📡 API接口
+
+### 健康检查API
+```bash
+# HTML格式（可视化面板）
+GET http://localhost:8000/api/health
+
+# JSON格式（API调用）
+curl -H "Accept: application/json" http://localhost:8000/api/health
 ```
 
-返回指定文档的HTML渲染结果。
-
-**响应示例**:
+**JSON响应示例**:
 ```json
 {
-  "id": 1,
-  "title": "ROS2快速入门指南",
-  "html_content": "<h1>ROS2快速入门指南</h1>...",
-  "category": "ROS2基础",
-  "created_at": "2023-12-07 10:00:00"
+  "status": "healthy",
+  "database": {
+    "status": "ok",
+    "response_time": 0.29,
+    "version": "3.45.1",
+    "tables": 4
+  },
+  "statistics": {
+    "users": 2,
+    "documents": 2,
+    "comments": 1,
+    "admins": 1
+  },
+  "features": {
+    "数据库连接": true,
+    "会话管理": true,
+    "Markdown渲染": true,
+    "用户认证": true,
+    "搜索功能": true,
+    "评论系统": true
+  },
+  "runtime": {
+    "version": "Python 3.12.3",
+    "platform": "Linux",
+    "memory": "6705MB可用"
+  }
 }
 ```
 
-## 功能说明
+## 🎯 功能详解
 
-### 用户系统
-- 用户注册（用户名、邮箱、密码）
-- 用户登录/退出
-- 登录状态管理
+### 用户认证系统
+- **安全注册** - 用户名唯一性检查、密码确认验证
+- **会话管理** - Cookie-based会话、自动过期
+- **权限控制** - 管理员权限、功能访问控制
 
-### 文档系统
-- 教程列表展示
-- 分类管理
-- Markdown内容渲染
-- 代码语法高亮
-- 自动生成目录
+### 文档管理系统
+- **Markdown支持** - 完整Markdown语法渲染
+- **代码高亮** - 支持多种编程语言语法高亮
+- **分类管理** - 文档分类展示和管理
+- **目录生成** - 自动生成文档目录导航
 
-### 评论系统
-- 用户可对教程发表评论
-- 评论列表展示
-- 需要登录才能评论
+### 搜索功能
+- **全文搜索** - 标题和内容全文搜索
+- **关键词高亮** - 搜索结果关键词高亮显示
+- **统计信息** - 搜索结果数量和相关度
 
-### 响应式设计
-- 支持桌面和移动设备
-- Bootstrap响应式布局
-- 友好的用户体验
+### 管理后台
+- **仪表板** - 系统概览、数据统计、快速操作
+- **用户管理** - 用户列表、权限管理、活动监控
+- **内容管理** - 文档CRUD、分类管理、批量操作
+- **系统监控** - 实时状态、性能指标、健康检查
 
-## 扩展功能
+## 🌐 部署选项
 
-后续可以添加的功能：
+### 1. Render.com (推荐)
+- 免费tier支持
+- 自动HTTPS
+- 全球CDN
+- 零配置部署
 
-1. **内容管理系统**
-   - 管理员可在线编辑教程
-   - 文档版本管理
-   - 富文本编辑器
+### 2. Heroku
+- 支持免费dyno
+- Git部署
+- 插件生态
 
-2. **搜索功能**
-   - 全文搜索
-   - 标签系统
-   - 分类筛选
+### 3. Railway
+- 现代化平台
+- GitHub集成
+- 实时日志
 
-3. **用户增强**
-   - 用户个人资料
-   - 用户权限管理
-   - 评论回复功能
+### 4. 自托管
+- VPS/云服务器
+- Docker容器
+- 反向代理
 
-4. **部署优化**
-   - Docker部署
-   - 生产环境配置
-   - 数据库迁移
+## 🔒 安全特性
 
-## 贡献
+- **密码加密** - SHA256+盐值加密存储
+- **会话安全** - 随机UUID会话ID
+- **权限验证** - 基于角色的访问控制
+- **输入验证** - 防止SQL注入和XSS攻击
+- **HTTPS支持** - 云平台自动启用
 
-欢迎提交Issue和Pull Request来改进项目！
+## 📈 性能优化
 
-## 许可证
+- **轻量级设计** - 零外部依赖
+- **高效数据库** - SQLite优化查询
+- **缓存策略** - 静态资源缓存
+- **压缩传输** - Gzip压缩支持
 
-MIT License
+## 🚀 扩展功能
+
+计划中的功能增强：
+
+1. **内容编辑器**
+   - 在线Markdown编辑器
+   - 实时预览
+   - 图片上传支持
+
+2. **用户体验**
+   - 主题切换（深色/浅色）
+   - 多语言支持
+   - 无障碍访问优化
+
+3. **数据分析**
+   - 用户行为分析
+   - 内容热度统计
+   - 访问量监控
+
+4. **API扩展**
+   - RESTful API
+   - 第三方集成
+   - Webhook支持
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request！
+
+1. Fork项目
+2. 创建功能分支
+3. 提交代码变更
+4. 创建Pull Request
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+---
+
+🤖 **ROS2 Wiki Enhanced** - 让机器人学习更简单、更现代！

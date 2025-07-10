@@ -239,7 +239,7 @@ class WikiHandler(http.server.SimpleHTTPRequestHandler):
             except ValueError:
                 self.send_error(400, '无效的文档ID')
         else:
-            self.send_error(404, '页面不存在')
+            self.send_error(404, 'Page Not Found')
 
 def main():
     init_db()

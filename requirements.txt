@@ -1,15 +1,25 @@
-Flask==2.3.3
-Flask-Login==0.6.3
-Flask-SQLAlchemy==3.0.5
-Flask-Migrate==4.0.5
-Flask-WTF==1.2.1
-Werkzeug==2.3.7
-Markdown==3.5.1
-Pygments==2.16.1
-gunicorn==21.2.0
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
-click==8.1.7
-redis==5.0.1
-bleach==6.1.0
-email-validator==2.1.1
+# ROS2 Wiki Enhanced Server - Minimal Dependencies
+# This application primarily uses Python standard library
+
+# No required dependencies for core functionality
+# All features work with Python standard library only
+
+# Optional dependencies for enhanced functionality:
+# psutil==5.9.0  # For advanced system monitoring (optional)
+
+# Legacy Flask dependencies (not used by enhanced_server.py)
+# Flask==2.3.3
+# Flask-Login==0.6.3
+# Flask-SQLAlchemy==3.0.5
+# Flask-Migrate==4.0.5
+# Flask-WTF==1.2.1
+# Werkzeug==2.3.7
+# Markdown==3.5.1
+# Pygments==2.16.1
+# gunicorn==21.2.0
+# psycopg2-binary==2.9.9
+# python-dotenv==1.0.0
+# click==8.1.7
+# redis==5.0.1
+# bleach==6.1.0
+# email-validator==2.1.1
