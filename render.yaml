@@ -3,11 +3,21 @@ services:
     name: ros2-wiki
     env: python
     region: oregon
-    buildCommand: echo "No dependencies needed - using Python stdlib only"
-    startCommand: python enhanced_server.py
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=1
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///ros2_wiki.db
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: ADMIN_EMAIL
+        value: admin@ros2wiki.com
+      - key: FLASK_ENV
+        value: production
       - key: PORT
         fromService:
           type: web
