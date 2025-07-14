@@ -203,6 +203,32 @@ def health():
         }
     })
 
+@app.route('/search')
+def search():
+    """搜索功能"""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return render_template('search/results.html', results=[], query='')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 简单的搜索实现
+    search_pattern = f"%{query}%"
+    cursor.execute('''
+        SELECT d.*, u.username
+        FROM documents d
+        LEFT JOIN users u ON d.author_id = u.id
+        WHERE d.title LIKE ? OR d.content LIKE ?
+        ORDER BY d.created_at DESC
+        LIMIT 20
+    ''', [search_pattern, search_pattern])
+
+    results = cursor.fetchall()
+    conn.close()
+
+    return render_template('search/results.html', results=results, query=query)
+
 @app.route('/debug')
 def debug():
     """调试信息页面"""
