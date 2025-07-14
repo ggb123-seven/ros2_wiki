@@ -1,5 +1,9 @@
-# ROS2 Wiki Enhanced - 零依赖部署
-# 此应用仅使用Python标准库，无需安装任何外部包
+# ROS2 Wiki Enhanced - Render部署依赖
+# 为Render部署添加必要的依赖包
 
-# 注意：空的requirements.txt文件表示无依赖
-# Render需要此文件存在，即使是空的
+Flask==2.3.3
+Flask-Login==0.6.3
+Werkzeug==2.3.7
+Markdown==3.5.1
+gunicorn==21.2.0
+psycopg2-binary==2.9.7

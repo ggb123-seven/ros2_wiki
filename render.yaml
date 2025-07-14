@@ -3,8 +3,8 @@ services:
     name: ros2-wiki
     env: python
     region: oregon
-    buildCommand: pip install -r requirements_working.txt
-    startCommand: gunicorn app_emergency:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

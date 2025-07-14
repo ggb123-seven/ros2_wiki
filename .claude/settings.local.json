@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /home/sevenseven/ros2_wiki/app/{auth,main,admin,models,utils})",
+      "Bash(ls -la /home/sevenseven/ros2_wiki/ros2_wiki.db)",
+      "Bash(find /home/sevenseven/ros2_wiki -name \"*.db\" -o -name \"*.sqlite\" -o -name \"*.sqlite3\")",
+      "Bash(pip install psycopg2-binary click python-dotenv flask-migrate)",
+      "Bash(pip3 install psycopg2-binary click python-dotenv flask-migrate)",
+      "Bash(python3 -m pip install psycopg2-binary click python-dotenv flask-migrate)",
+      "Bash(cp /home/sevenseven/ros2_wiki/.env.example /home/sevenseven/ros2_wiki/.env)",
+      "Bash(docker --version)",
+      "Bash(chmod +x /home/sevenseven/ros2_wiki/scripts/init_postgres.sh)",
+      "Bash(chmod +x /home/sevenseven/ros2_wiki/migrate_helper.sh)",
+      "Bash(chmod +x /home/sevenseven/ros2_wiki/check_migration_status.py)",
+      "Bash(python3 check_migration_status.py)",
+      "Bash(python3 /home/sevenseven/ros2_wiki/check_status_simple.py)",
+      "Bash(chmod +x /home/sevenseven/ros2_wiki/auto_deploy.sh)",
+      "Bash(chmod +x /home/sevenseven/ros2_wiki/docker_deploy.sh)",
+      "Bash(./auto_deploy.sh)",
+      "Bash(bash /home/sevenseven/ros2_wiki/auto_deploy.sh)"
+    ],
+    "deny": []
+  }
+}
