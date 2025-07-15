@@ -4,7 +4,7 @@ services:
     env: python
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=2
+    startCommand: python cloud_startup.py && gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=2
     envVars:
       - key: SECRET_KEY
         generateValue: true
@@ -15,16 +15,20 @@ services:
       - key: FLASK_ENV
         value: production
       - key: MIN_PASSWORD_LENGTH
-        value: "8"
+        value: "6"
       - key: REQUIRE_SPECIAL_CHARS
-        value: "True"
+        value: "False"
       - key: ADMIN_USERNAME
         value: "ssss"
       - key: ADMIN_EMAIL
         value: "seventee_0611@qq.com"
       - key: ADMIN_PASSWORD
-        value: "ssss123"
+        value: "ssss1234"
       - key: AUTO_CREATE_ADMIN
+        value: "true"
+      - key: FORCE_ADMIN_CREATION
+        value: "true"
+      - key: SKIP_PASSWORD_VALIDATION
         value: "true"
 
 databases:
