@@ -107,6 +107,31 @@ def get_db_connection():
             print("Warning: PostgreSQL URL provided but psycopg2 not available, using SQLite")
         return sqlite3.connect(app.config['DATABASE'] or 'ros2_wiki.db')
 
+class DatabaseCompatibility:
+    """数据库兼容性工具类"""
+
+    @staticmethod
+    def get_boolean_condition(field, value, use_postgresql):
+        """获取boolean字段查询条件"""
+        if use_postgresql:
+            return f"{field} = {'TRUE' if value else 'FALSE'}"
+        else:
+            return f"{field} = {1 if value else 0}"
+
+    @staticmethod
+    def format_query_placeholders(query, use_postgresql):
+        """格式化查询占位符"""
+        if use_postgresql:
+            return query.replace('?', '%s')
+        return query
+
+    @staticmethod
+    def get_boolean_value(value, use_postgresql):
+        """获取boolean值"""
+        if use_postgresql:
+            return 'TRUE' if value else 'FALSE'
+        return 1 if value else 0
+
 def init_database():
     """初始化数据库"""
     conn = get_db_connection()
@@ -250,7 +275,7 @@ def init_database():
                 cursor.execute('''
                     INSERT INTO users (username, email, password_hash, is_admin)
                     VALUES (?, ?, ?, ?)
-                ''', (cloud_admin_username, cloud_admin_email, admin_password_hash, True))
+                ''', (cloud_admin_username, cloud_admin_email, admin_password_hash, 1))
             print(f"✅ Created cloud admin account: {cloud_admin_username}")
 
         # 创建默认管理员用户（备用）
@@ -264,7 +289,7 @@ def init_database():
             cursor.execute('''
                 INSERT INTO users (username, email, password_hash, is_admin)
                 VALUES (?, ?, ?, ?)
-            ''', ('ros2_admin', 'admin@ros2wiki.com', admin_password, True))
+            ''', ('ros2_admin', 'admin@ros2wiki.com', admin_password, 1))
 
         # 创建测试用户
         user_password = generate_password_hash('user123')
@@ -277,10 +302,11 @@ def init_database():
             cursor.execute('''
                 INSERT INTO users (username, email, password_hash, is_admin)
                 VALUES (?, ?, ?, ?)
-            ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
+            ''', ('ros2_user', 'user@ros2wiki.com', user_password, 0))
 
-        # 获取管理员用户ID
-        cursor.execute('SELECT id FROM users WHERE is_admin = TRUE LIMIT 1')
+        # 获取管理员用户ID - 使用兼容性工具类
+        admin_condition = DatabaseCompatibility.get_boolean_condition('is_admin', True, use_postgresql)
+        cursor.execute(f'SELECT id FROM users WHERE {admin_condition} LIMIT 1')
         admin_user = cursor.fetchone()
         admin_id = admin_user[0] if admin_user else 1
 
@@ -1395,6 +1421,9 @@ def admin_dashboard():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # 判断数据库类型
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+
         # 获取统计信息
         cursor.execute('SELECT COUNT(*) FROM users')
         user_count = cursor.fetchone()[0]
@@ -1405,8 +1434,9 @@ def admin_dashboard():
         cursor.execute('SELECT COUNT(*) FROM comments')
         comment_count = cursor.fetchone()[0]
 
-        # 获取黑名单用户数量
-        cursor.execute('SELECT COUNT(*) FROM users WHERE is_blacklisted = 1')
+        # 获取黑名单用户数量 - 使用兼容性工具类
+        blacklist_condition = DatabaseCompatibility.get_boolean_condition('is_blacklisted', True, use_postgresql)
+        cursor.execute(f'SELECT COUNT(*) FROM users WHERE {blacklist_condition}')
         blacklisted_count = cursor.fetchone()[0]
 
         # 获取最新注册用户
