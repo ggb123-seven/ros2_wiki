@@ -922,6 +922,46 @@ def health():
         }
     })
 
+@app.route('/debug/users')
+def debug_users():
+    """调试用户信息"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 获取用户表结构
+        if use_postgresql:
+            cursor.execute("""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = 'users'
+                ORDER BY ordinal_position
+            """)
+            schema = cursor.fetchall()
+
+            cursor.execute('SELECT id, username, email, is_admin FROM users LIMIT 5')
+        else:
+            cursor.execute('PRAGMA table_info(users)')
+            schema = cursor.fetchall()
+
+            cursor.execute('SELECT id, username, email, is_admin FROM users LIMIT 5')
+
+        users = cursor.fetchall()
+        conn.close()
+
+        return jsonify({
+            "schema": schema,
+            "users": users,
+            "current_user_authenticated": current_user.is_authenticated,
+            "current_user_id": current_user.id if current_user.is_authenticated else None,
+            "current_user_name": current_user.username if current_user.is_authenticated else None,
+            "session_info": dict(request.cookies)
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
+
 @app.route('/search')
 def search():
     """搜索功能"""
