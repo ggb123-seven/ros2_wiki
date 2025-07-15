@@ -2023,6 +2023,15 @@ try:
 except Exception as e:
     print(f"初始化错误: {e}")
 
+# 添加云端调试端点
+if os.environ.get('FLASK_ENV') == 'production':
+    try:
+        from cloud_debug_endpoints import add_debug_endpoints
+        app = add_debug_endpoints(app)
+        print("✅ Cloud debug endpoints enabled")
+    except ImportError:
+        print("⚠️ Cloud debug endpoints not available")
+
 # 本地开发启动函数
 def main():
     """本地开发服务器"""
