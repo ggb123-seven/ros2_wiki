@@ -4,24 +4,23 @@ services:
     env: python
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=1
+    startCommand: gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=2
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///ros2_wiki.db
-      - key: ADMIN_USERNAME
-        value: admin
-      - key: ADMIN_PASSWORD
-        value: admin123
-      - key: ADMIN_EMAIL
-        value: admin@ros2wiki.com
+        fromDatabase:
+          name: ros2-wiki-db
+          property: connectionString
       - key: FLASK_ENV
         value: production
-      - key: PORT
-        fromService:
-          type: web
-          name: ros2-wiki
-          envVarKey: PORT
+      - key: MIN_PASSWORD_LENGTH
+        value: "8"
+      - key: REQUIRE_SPECIAL_CHARS
+        value: "True"
 
 databases:
+  - name: ros2-wiki-db
+    databaseName: ros2_wiki
+    user: ros2_wiki_user
+    region: oregon
