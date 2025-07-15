@@ -275,10 +275,55 @@ def init_database():
             ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
 
         # 创建示例文档
-        cursor.execute('''
-            INSERT INTO documents (title, content, category, author_id)
-            VALUES (?, ?, ?, ?)
-        ''', ('ROS2入门教程', '''# ROS2入门教程
+        if use_postgresql:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (%s, %s, %s, %s)
+            ''', ('ROS2入门教程', '''# ROS2入门教程
+
+## 什么是ROS2？
+
+ROS2（Robot Operating System 2）是一个开源的机器人操作系统框架，专为现代机器人应用设计。
+
+## 主要特性
+
+- **实时性能**：支持实时系统要求
+- **安全性**：内置安全机制
+- **跨平台**：支持Linux、Windows、macOS
+- **分布式架构**：支持多机器人协作
+
+## 安装指南
+
+### Ubuntu 22.04 安装
+
+```bash
+# 设置locale
+sudo locale-gen en_US en_US.UTF-8
+sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export LANG=en_US.UTF-8
+
+# 添加ROS2 apt源
+sudo apt update && sudo apt install curl gnupg lsb-release
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# 安装ROS2
+sudo apt update
+sudo apt install ros-humble-desktop
+```
+
+## 下一步
+
+完成安装后，您可以继续学习：
+- 创建工作空间
+- 编写第一个节点
+- 学习话题通信
+''', '基础教程', 1))
+        else:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (?, ?, ?, ?)
+            ''', ('ROS2入门教程', '''# ROS2入门教程
 
 ## 什么是ROS2？
 
@@ -319,9 +364,10 @@ sudo apt install ros-humble-desktop
 - 学习话题通信
 ''', '基础教程', 1))
 
-        cursor.execute('''
-            INSERT INTO documents (title, content, category, author_id)
-            VALUES (?, ?, ?, ?)
+        if use_postgresql:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (%s, %s, %s, %s)
         ''', ('ROS2节点通信', '''# ROS2节点通信
 
 ## 话题通信（Topics）
@@ -393,10 +439,92 @@ def main(args=None):
 
 动作用于长时间运行的任务，提供反馈机制。
 ''', '进阶教程', 1))
+        else:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (?, ?, ?, ?)
+            ''', ('ROS2节点通信', '''# ROS2节点通信
 
-        cursor.execute('''
-            INSERT INTO documents (title, content, category, author_id)
-            VALUES (?, ?, ?, ?)
+## 话题通信（Topics）
+
+话题是ROS2中最常用的通信方式，采用发布-订阅模式。
+
+### 创建发布者
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World: %d' % self.i
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.i += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+    rclpy.spin(minimal_publisher)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### 创建订阅者
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalSubscriber(Node):
+    def __init__(self):
+        super().__init__('minimal_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'topic',
+            self.listener_callback,
+            10)
+
+    def listener_callback(self, msg):
+        self.get_logger().info('I heard: "%s"' % msg.data)
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_subscriber = MinimalSubscriber()
+    rclpy.spin(minimal_subscriber)
+    minimal_subscriber.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## 服务通信（Services）
+
+服务提供同步的请求-响应通信模式。
+
+## 动作通信（Actions）
+
+动作用于长时间运行的任务，提供反馈机制。
+''', '进阶教程', 1))
+
+        if use_postgresql:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (%s, %s, %s, %s)
         ''', ('ROS2工作空间管理', '''# ROS2工作空间管理
 
 ## 创建工作空间
@@ -421,6 +549,40 @@ ros2 pkg create --build-type ament_python my_package
 ```bash
 cd ~/ros2_ws
 colcon build --packages-select my_package
+```
+
+## 环境设置
+
+```bash
+source ~/ros2_ws/install/setup.bash
+```
+''', '工具使用', 1))
+        else:
+            cursor.execute('''
+                INSERT INTO documents (title, content, category, author_id)
+                VALUES (?, ?, ?, ?)
+            ''', ('ROS2工作空间管理', '''# ROS2工作空间管理
+
+## 创建工作空间
+
+创建工作空间是ROS2开发的第一步。
+
+```bash
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src
+```
+
+## 创建包
+
+```bash
+ros2 pkg create --build-type ament_python my_package
+```
+
+## 构建工作空间
+
+```bash
+cd ~/ros2_ws
+colcon build
 ```
 
 ## 环境设置
