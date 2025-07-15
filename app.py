@@ -958,6 +958,9 @@ def debug_users():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # 判断数据库类型
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+
         # 获取用户表结构
         if use_postgresql:
             cursor.execute("""
