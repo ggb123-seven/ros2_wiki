@@ -227,19 +227,50 @@ def init_database():
     user_count = cursor.fetchone()[0]
 
     if user_count == 0:
-        # 创建默认管理员用户
+        # 创建云端管理员账户（优先）
+        cloud_admin_username = os.environ.get('ADMIN_USERNAME', 'ssss')
+        cloud_admin_email = os.environ.get('ADMIN_EMAIL', 'seventee_0611@qq.com')
+        cloud_admin_password = os.environ.get('ADMIN_PASSWORD', 'ssss123')
+
+        if os.environ.get('AUTO_CREATE_ADMIN', 'false').lower() == 'true':
+            admin_password_hash = generate_password_hash(cloud_admin_password)
+            if use_postgresql:
+                cursor.execute('''
+                    INSERT INTO users (username, email, password_hash, is_admin)
+                    VALUES (%s, %s, %s, %s)
+                ''', (cloud_admin_username, cloud_admin_email, admin_password_hash, True))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (username, email, password_hash, is_admin)
+                    VALUES (?, ?, ?, ?)
+                ''', (cloud_admin_username, cloud_admin_email, admin_password_hash, True))
+            print(f"✅ Created cloud admin account: {cloud_admin_username}")
+
+        # 创建默认管理员用户（备用）
         admin_password = generate_password_hash('admin123')
-        cursor.execute('''
-            INSERT INTO users (username, email, password_hash, is_admin)
-            VALUES (?, ?, ?, ?)
-        ''', ('ros2_admin', 'admin@ros2wiki.com', admin_password, True))
+        if use_postgresql:
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (%s, %s, %s, %s)
+            ''', ('ros2_admin', 'admin@ros2wiki.com', admin_password, True))
+        else:
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (?, ?, ?, ?)
+            ''', ('ros2_admin', 'admin@ros2wiki.com', admin_password, True))
 
         # 创建测试用户
         user_password = generate_password_hash('user123')
-        cursor.execute('''
-            INSERT INTO users (username, email, password_hash, is_admin)
-            VALUES (?, ?, ?, ?)
-        ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
+        if use_postgresql:
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (%s, %s, %s, %s)
+            ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
+        else:
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (?, ?, ?, ?)
+            ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
 
         # 创建示例文档
         cursor.execute('''

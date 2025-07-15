@@ -1,1 +1,1 @@
-web: python3 enhanced_server.py
+web: python cloud_init_db.py && gunicorn app:app --host=0.0.0.0 --port=$PORT --workers=2
