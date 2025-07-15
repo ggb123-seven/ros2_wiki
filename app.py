@@ -764,12 +764,15 @@ def documents():
     where_conditions = []
     params = []
 
+    # 根据数据库类型选择占位符
+    placeholder = '%s' if use_postgresql else '?'
+
     if search:
-        where_conditions.append("(d.title LIKE ? OR d.content LIKE ?)")
+        where_conditions.append(f"(d.title LIKE {placeholder} OR d.content LIKE {placeholder})")
         params.extend([f'%{search}%', f'%{search}%'])
 
     if category:
-        where_conditions.append("d.category = ?")
+        where_conditions.append(f"d.category = {placeholder}")
         params.append(category)
 
     where_clause = " AND ".join(where_conditions)
@@ -805,7 +808,7 @@ def documents():
         LEFT JOIN users u ON d.author_id = u.id
         {where_clause}
         {order_clause}
-        LIMIT ? OFFSET ?
+        LIMIT {placeholder} OFFSET {placeholder}
     '''
     cursor.execute(query, params + [per_page, offset])
     all_docs = cursor.fetchall()
@@ -1000,16 +1003,20 @@ def search():
     # 获取数据库连接
     conn = get_db_connection()
     cursor = conn.cursor()
+    use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
 
     # 简单的搜索实现
     # 构造搜索模式，包含关键字
     search_pattern = f"%{query}%"
+    # 根据数据库类型选择占位符
+    placeholder = '%s' if use_postgresql else '?'
+
     # 执行SQL查询，搜索标题或内容中包含关键字的文档
-    cursor.execute('''
+    cursor.execute(f'''
         SELECT d.*, u.username
         FROM documents d
         LEFT JOIN users u ON d.author_id = u.id
-        WHERE d.title LIKE ? OR d.content LIKE ?
+        WHERE d.title LIKE {placeholder} OR d.content LIKE {placeholder}
         ORDER BY d.created_at DESC
         LIMIT 20
     ''', [search_pattern, search_pattern])
