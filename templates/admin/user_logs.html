@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}用户操作日志 - {{ user.username }} - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-history text-info"></i> 用户操作日志
+                </h2>
+                <div>
+                    <a href="{{ url_for('permissions.users') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回用户管理
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-home"></i> 管理后台
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户信息卡片 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="card-title">
+                                <i class="fas fa-user-circle text-primary"></i> {{ user.username }}
+                            </h5>
+                            <p class="card-text">
+                                <strong>邮箱:</strong> {{ user.email }}<br>
+                                <strong>权限:</strong> 
+                                {% if user.is_admin %}
+                                    <span class="badge bg-danger">管理员</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">普通用户</span>
+                                {% endif %}
+                                <br>
+                                <strong>状态:</strong>
+                                {% if user.is_blacklisted %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-ban"></i> 已拉黑
+                                    </span>
+                                    {% if user.blacklist_reason %}
+                                        <small class="text-muted">- {{ user.blacklist_reason }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> 正常
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('permissions.edit_user', user_id=user.id) }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-edit"></i> 编辑用户
+                                </a>
+                                {% if user.is_blacklisted %}
+                                    <button type="button" class="btn btn-outline-success" 
+                                            onclick="unblacklistUser({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-unlock"></i> 解除拉黑
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="btn btn-outline-warning" 
+                                            onclick="blacklistUser({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-ban"></i> 拉黑用户
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作日志列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> 操作历史 
+                        <span class="badge bg-secondary">{{ pagination.total }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                    <th>管理员</th>
+                                    <th>原因/备注</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ log.created_at[:16] if log.created_at else '未知' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if log.action == 'BLACKLIST' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-ban"></i> 拉黑
+                                            </span>
+                                        {% elif log.action == 'UNBLACKLIST' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-unlock"></i> 解除拉黑
+                                            </span>
+                                        {% elif log.action == 'BATCH_BLACKLIST' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-ban"></i> 批量拉黑
+                                            </span>
+                                        {% elif log.action == 'CREATE' %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-plus"></i> 创建
+                                            </span>
+                                        {% elif log.action == 'UPDATE' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-edit"></i> 更新
+                                            </span>
+                                        {% elif log.action == 'DELETE' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-trash"></i> 删除
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                {{ log.action }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.admin_name %}
+                                            <strong>{{ log.admin_name }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">系统</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">
+                                            {{ log.reason or '无备注' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无操作记录</h5>
+                        <p class="text-muted">该用户还没有管理操作记录</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.total_pages > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="操作日志分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.user_logs', user_id=user.id, page=pagination.page-1) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('permissions.user_logs', user_id=user.id, page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                        {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.user_logs', user_id=user.id, page=pagination.page+1) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 拉黑用户模态框 -->
+<div class="modal fade" id="blacklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-ban text-warning"></i> 拉黑用户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="blacklistForm" method="POST">
+                <div class="modal-body">
+                    <p>确定要拉黑用户 <strong id="blacklistUsername"></strong> 吗？</p>
+                    <div class="mb-3">
+                        <label for="blacklistReason" class="form-label">拉黑原因</label>
+                        <textarea class="form-control" id="blacklistReason" name="reason" rows="3" 
+                                  placeholder="请输入拉黑原因..." required>违反社区规定</textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        拉黑后该用户将无法登录系统，请谨慎操作！
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-ban"></i> 确认拉黑
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 隐藏的表单用于提交操作 -->
+<form id="hiddenForm" method="POST" style="display: none;">
+</form>
+
+<script>
+// 拉黑用户
+function blacklistUser(userId, username) {
+    document.getElementById('blacklistUsername').textContent = username;
+    document.getElementById('blacklistForm').action = `/admin/users/${userId}/blacklist`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('blacklistModal'));
+    modal.show();
+}
+
+// 解除拉黑
+function unblacklistUser(userId, username) {
+    if (confirm(`确定要解除用户 "${username}" 的拉黑状态吗？`)) {
+        const form = document.getElementById('hiddenForm');
+        form.action = `/admin/users/${userId}/unblacklist`;
+        form.submit();
+    }
+}
+</script>
+
+<style>
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+</style>
+
+{% endblock %}

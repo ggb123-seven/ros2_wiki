@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-users text-primary"></i> 用户管理
+                </h2>
+                <div>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回后台
+                    </a>
+                    <a href="{{ url_for('permissions.new_user') }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> 新建用户
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索和筛选 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">搜索用户</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ current_search or '' }}" placeholder="用户名或邮箱...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status_filter" class="form-label">状态筛选</label>
+                            <select class="form-select" id="status_filter" name="status">
+                                <option value="">全部用户</option>
+                                <option value="normal" {{ 'selected' if request.args.get('status') == 'normal' }}>正常用户</option>
+                                <option value="blacklisted" {{ 'selected' if request.args.get('status') == 'blacklisted' }}>黑名单用户</option>
+                                <option value="admin" {{ 'selected' if request.args.get('status') == 'admin' }}>管理员</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="per_page" class="form-label">每页显示</label>
+                            <select class="form-select" id="per_page" name="per_page">
+                                <option value="10" {{ 'selected' if pagination.per_page == 10 }}>10</option>
+                                <option value="20" {{ 'selected' if pagination.per_page == 20 }}>20</option>
+                                <option value="50" {{ 'selected' if pagination.per_page == 50 }}>50</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid gap-2 d-md-flex">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> 搜索
+                                </button>
+                                <a href="{{ url_for('permissions.users') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> 清除
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量操作工具栏 -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <label class="form-check-label">
+                                <input type="checkbox" id="selectAll" class="form-check-input"> 全选
+                            </label>
+                            <span id="selectedCount" class="text-muted ms-2">已选择 0 个用户</span>
+                        </div>
+                        <div id="batchActions" style="display: none;">
+                            <button type="button" class="btn btn-warning btn-sm" onclick="batchBlacklist()">
+                                <i class="fas fa-ban"></i> 批量拉黑
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="batchDelete()">
+                                <i class="fas fa-trash"></i> 批量删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> 用户列表 
+                        <span class="badge bg-secondary">{{ pagination.total }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="50">
+                                        <input type="checkbox" id="selectAllHeader" class="form-check-input">
+                                    </th>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>权限</th>
+                                    <th>状态</th>
+                                    <th>最后登录</th>
+                                    <th>注册时间</th>
+                                    <th width="200">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input user-checkbox" 
+                                               value="{{ user.id }}" data-username="{{ user.username }}">
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ user.id }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle text-primary me-2"></i>
+                                            <strong>{{ user.username }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-danger">管理员</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">普通用户</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_blacklisted %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-ban"></i> 已拉黑
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> 正常
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.last_seen %}
+                                            <small class="text-muted">{{ user.last_seen[:16] }}</small>
+                                        {% else %}
+                                            <small class="text-muted">从未登录</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ user.created_at[:16] }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <!-- 编辑按钮 -->
+                                            <a href="{{ url_for('permissions.edit_user', user_id=user.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" title="编辑用户">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            
+                                            <!-- 黑名单操作按钮 -->
+                                            {% if user.is_blacklisted %}
+                                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                                        onclick="unblacklistUser({{ user.id }}, '{{ user.username }}')" 
+                                                        title="解除拉黑">
+                                                    <i class="fas fa-unlock"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="button" class="btn btn-outline-warning btn-sm" 
+                                                        onclick="blacklistUser({{ user.id }}, '{{ user.username }}')" 
+                                                        title="拉黑用户">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            <!-- 查看日志按钮 -->
+                                            <a href="{{ url_for('permissions.user_logs', user_id=user.id) }}" 
+                                               class="btn btn-outline-info btn-sm" title="查看操作日志">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                            
+                                            <!-- 删除按钮 -->
+                                            {% if not user.is_admin or user.id != current_user.id %}
+                                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteUser({{ user.id }}, '{{ user.username }}')" 
+                                                    title="删除用户">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无用户数据</h5>
+                        <p class="text-muted">没有找到符合条件的用户</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.total_pages > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="用户列表分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.users', page=pagination.page-1, search=current_search, per_page=pagination.per_page) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('permissions.users', page=page_num, search=current_search, per_page=pagination.per_page) }}">{{ page_num }}</a>
+                        </li>
+                        {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.users', page=pagination.page+1, search=current_search, per_page=pagination.per_page) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 拉黑用户模态框 -->
+<div class="modal fade" id="blacklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-ban text-warning"></i> 拉黑用户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="blacklistForm" method="POST">
+                <div class="modal-body">
+                    <p>确定要拉黑用户 <strong id="blacklistUsername"></strong> 吗？</p>
+                    <div class="mb-3">
+                        <label for="blacklistReason" class="form-label">拉黑原因</label>
+                        <textarea class="form-control" id="blacklistReason" name="reason" rows="3"
+                                  placeholder="请输入拉黑原因..." required>违反社区规定</textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        拉黑后该用户将无法登录系统，请谨慎操作！
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-ban"></i> 确认拉黑
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 批量拉黑模态框 -->
+<div class="modal fade" id="batchBlacklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-ban text-warning"></i> 批量拉黑用户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="batchBlacklistForm" method="POST" action="{{ url_for('permissions.batch_blacklist') }}">
+                <div class="modal-body">
+                    <p>确定要拉黑以下 <strong id="batchCount"></strong> 个用户吗？</p>
+                    <div id="batchUserList" class="mb-3"></div>
+                    <div class="mb-3">
+                        <label for="batchReason" class="form-label">拉黑原因</label>
+                        <textarea class="form-control" id="batchReason" name="reason" rows="3"
+                                  placeholder="请输入拉黑原因..." required>批量管理操作</textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        批量拉黑后这些用户将无法登录系统，请谨慎操作！
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-ban"></i> 确认批量拉黑
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 隐藏的表单用于提交操作 -->
+<form id="hiddenForm" method="POST" style="display: none;">
+</form>
+
+<script>
+// 全选功能
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const selectAllHeader = document.getElementById('selectAllHeader');
+    const userCheckboxes = document.querySelectorAll('.user-checkbox');
+    const selectedCount = document.getElementById('selectedCount');
+    const batchActions = document.getElementById('batchActions');
+
+    // 同步两个全选复选框
+    function syncSelectAll() {
+        selectAll.checked = selectAllHeader.checked;
+        selectAllHeader.checked = selectAll.checked;
+
+        userCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+
+        updateSelectedCount();
+    }
+
+    selectAll.addEventListener('change', syncSelectAll);
+    selectAllHeader.addEventListener('change', function() {
+        selectAll.checked = this.checked;
+        syncSelectAll();
+    });
+
+    // 更新选中数量
+    function updateSelectedCount() {
+        const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        selectedCount.textContent = `已选择 ${count} 个用户`;
+
+        if (count > 0) {
+            batchActions.style.display = 'block';
+        } else {
+            batchActions.style.display = 'none';
+        }
+
+        // 更新全选状态
+        if (count === 0) {
+            selectAll.indeterminate = false;
+            selectAll.checked = false;
+            selectAllHeader.indeterminate = false;
+            selectAllHeader.checked = false;
+        } else if (count === userCheckboxes.length) {
+            selectAll.indeterminate = false;
+            selectAll.checked = true;
+            selectAllHeader.indeterminate = false;
+            selectAllHeader.checked = true;
+        } else {
+            selectAll.indeterminate = true;
+            selectAllHeader.indeterminate = true;
+        }
+    }
+
+    // 监听单个复选框变化
+    userCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+
+    // 初始化
+    updateSelectedCount();
+});
+
+// 拉黑用户
+function blacklistUser(userId, username) {
+    document.getElementById('blacklistUsername').textContent = username;
+    document.getElementById('blacklistForm').action = `/admin/users/${userId}/blacklist`;
+
+    const modal = new bootstrap.Modal(document.getElementById('blacklistModal'));
+    modal.show();
+}
+
+// 解除拉黑
+function unblacklistUser(userId, username) {
+    if (confirm(`确定要解除用户 "${username}" 的拉黑状态吗？`)) {
+        const form = document.getElementById('hiddenForm');
+        form.action = `/admin/users/${userId}/unblacklist`;
+        form.submit();
+    }
+}
+
+// 删除用户
+function deleteUser(userId, username) {
+    if (confirm(`确定要删除用户 "${username}" 吗？\n\n此操作不可撤销，将同时删除该用户的所有相关数据。`)) {
+        const form = document.getElementById('hiddenForm');
+        form.action = `/admin/users/${userId}/delete`;
+        form.submit();
+    }
+}
+
+// 批量拉黑
+function batchBlacklist() {
+    const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert('请先选择要拉黑的用户');
+        return;
+    }
+
+    // 更新批量拉黑模态框内容
+    document.getElementById('batchCount').textContent = checkedBoxes.length;
+
+    const userList = document.getElementById('batchUserList');
+    userList.innerHTML = '';
+
+    const form = document.getElementById('batchBlacklistForm');
+    // 清除之前的隐藏字段
+    form.querySelectorAll('input[name="user_ids"]').forEach(input => input.remove());
+
+    checkedBoxes.forEach(checkbox => {
+        const username = checkbox.dataset.username;
+        const userId = checkbox.value;
+
+        // 添加到显示列表
+        const userItem = document.createElement('div');
+        userItem.className = 'badge bg-secondary me-1 mb-1';
+        userItem.textContent = username;
+        userList.appendChild(userItem);
+
+        // 添加到表单
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'user_ids';
+        hiddenInput.value = userId;
+        form.appendChild(hiddenInput);
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('batchBlacklistModal'));
+    modal.show();
+}
+
+// 批量删除
+function batchDelete() {
+    const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert('请先选择要删除的用户');
+        return;
+    }
+
+    const usernames = Array.from(checkedBoxes).map(cb => cb.dataset.username).join('、');
+
+    if (confirm(`确定要删除以下 ${checkedBoxes.length} 个用户吗？\n\n${usernames}\n\n此操作不可撤销！`)) {
+        // 实现批量删除逻辑
+        alert('批量删除功能开发中...');
+    }
+}
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+}
+
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+.user-checkbox {
+    cursor: pointer;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+{% endblock %}

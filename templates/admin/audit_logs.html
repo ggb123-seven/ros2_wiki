@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block title %}审计日志 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-clipboard-list text-info"></i> 审计日志
+                </h2>
+                <div>
+                    <a href="{{ url_for('permissions.admin_activity') }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line"></i> 活动摘要
+                    </a>
+                    <a href="{{ url_for('permissions.users') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回用户管理
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-home"></i> 管理后台
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter"></i> 筛选条件
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="admin_id" class="form-label">管理员</label>
+                            <select class="form-select" id="admin_id" name="admin_id">
+                                <option value="">全部管理员</option>
+                                {% for admin in admins %}
+                                <option value="{{ admin.id }}" {{ 'selected' if current_filters.admin_id == admin.id|string }}>
+                                    {{ admin.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="user_id" class="form-label">目标用户</label>
+                            <select class="form-select" id="user_id" name="user_id">
+                                <option value="">全部用户</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {{ 'selected' if current_filters.user_id == user.id|string }}>
+                                    {{ user.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="action" class="form-label">操作类型</label>
+                            <select class="form-select" id="action" name="action">
+                                <option value="">全部操作</option>
+                                {% for action_type in actions %}
+                                <option value="{{ action_type }}" {{ 'selected' if current_filters.action == action_type }}>
+                                    {% if action_type == 'BLACKLIST' %}拉黑
+                                    {% elif action_type == 'UNBLACKLIST' %}解除拉黑
+                                    {% elif action_type == 'BATCH_BLACKLIST' %}批量拉黑
+                                    {% elif action_type == 'CREATE' %}创建
+                                    {% elif action_type == 'UPDATE' %}更新
+                                    {% elif action_type == 'DELETE' %}删除
+                                    {% else %}{{ action_type }}
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">开始日期</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ current_filters.date_from or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">结束日期</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ current_filters.date_to or '' }}">
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> 筛选
+                                </button>
+                                <a href="{{ url_for('permissions.audit_logs') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> 清除
+                                </a>
+                                <a href="{{ url_for('permissions.export_audit_logs', **current_filters) }}" 
+                                   class="btn btn-success">
+                                    <i class="fas fa-download"></i> 导出CSV
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审计日志列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> 操作日志 
+                        <span class="badge bg-secondary">{{ pagination.total }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>操作类型</th>
+                                    <th>管理员</th>
+                                    <th>目标用户</th>
+                                    <th>原因/备注</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ log.created_at[:16] if log.created_at else '未知' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if log.action == 'BLACKLIST' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-ban"></i> 拉黑
+                                            </span>
+                                        {% elif log.action == 'UNBLACKLIST' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-unlock"></i> 解除拉黑
+                                            </span>
+                                        {% elif log.action == 'BATCH_BLACKLIST' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-ban"></i> 批量拉黑
+                                            </span>
+                                        {% elif log.action == 'CREATE' %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-plus"></i> 创建
+                                            </span>
+                                        {% elif log.action == 'UPDATE' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-edit"></i> 更新
+                                            </span>
+                                        {% elif log.action == 'DELETE' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-trash"></i> 删除
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                {{ log.action }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.admin_name %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-user-shield text-primary me-2"></i>
+                                                <div>
+                                                    <strong>{{ log.admin_name }}</strong>
+                                                    {% if log.admin_email %}
+                                                        <br><small class="text-muted">{{ log.admin_email }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">系统</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.target_name %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-user text-secondary me-2"></i>
+                                                <div>
+                                                    <strong>{{ log.target_name }}</strong>
+                                                    {% if log.target_email %}
+                                                        <br><small class="text-muted">{{ log.target_email }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">未知</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">
+                                            {{ log.reason or '无备注' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if log.target_user_id %}
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('permissions.user_logs', user_id=log.target_user_id) }}" 
+                                               class="btn btn-outline-info btn-sm" title="查看用户日志">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                    onclick="showTimeline({{ log.target_user_id }})" title="查看时间线">
+                                                <i class="fas fa-clock"></i>
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无审计日志</h5>
+                        <p class="text-muted">没有找到符合条件的操作记录</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.total_pages > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="审计日志分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.audit_logs', page=pagination.page-1, **current_filters) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('permissions.audit_logs', page=page_num, **current_filters) }}">{{ page_num }}</a>
+                        </li>
+                        {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.audit_logs', page=pagination.page+1, **current_filters) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 时间线模态框 -->
+<div class="modal fade" id="timelineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clock text-info"></i> 用户操作时间线
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="timelineContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 显示用户时间线
+function showTimeline(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('timelineModal'));
+    const content = document.getElementById('timelineContent');
+    
+    // 显示加载状态
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // 获取时间线数据
+    fetch(`/admin/users/api/audit/timeline/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTimeline(data.timeline);
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">加载失败: ${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            content.innerHTML = `<div class="alert alert-danger">网络错误: ${error.message}</div>`;
+        });
+}
+
+// 显示时间线
+function displayTimeline(timeline) {
+    const content = document.getElementById('timelineContent');
+    
+    if (timeline.length === 0) {
+        content.innerHTML = '<div class="text-center text-muted">暂无操作记录</div>';
+        return;
+    }
+    
+    let html = '<div class="timeline">';
+    
+    timeline.forEach((item, index) => {
+        const actionClass = getActionClass(item.action);
+        const actionText = getActionText(item.action);
+        
+        html += `
+            <div class="timeline-item">
+                <div class="timeline-marker ${actionClass}">
+                    <i class="fas ${getActionIcon(item.action)}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="badge ${actionClass}">${actionText}</span>
+                        <small class="text-muted">${item.created_at}</small>
+                    </div>
+                    <div class="timeline-body">
+                        <strong>管理员:</strong> ${item.admin_name || '系统'}<br>
+                        <strong>原因:</strong> ${item.reason || '无备注'}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    content.innerHTML = html;
+}
+
+// 获取操作类型对应的CSS类
+function getActionClass(action) {
+    switch(action) {
+        case 'BLACKLIST':
+        case 'BATCH_BLACKLIST':
+            return 'bg-warning';
+        case 'UNBLACKLIST':
+            return 'bg-success';
+        case 'CREATE':
+            return 'bg-primary';
+        case 'UPDATE':
+            return 'bg-info';
+        case 'DELETE':
+            return 'bg-danger';
+        default:
+            return 'bg-secondary';
+    }
+}
+
+// 获取操作类型对应的图标
+function getActionIcon(action) {
+    switch(action) {
+        case 'BLACKLIST':
+        case 'BATCH_BLACKLIST':
+            return 'fa-ban';
+        case 'UNBLACKLIST':
+            return 'fa-unlock';
+        case 'CREATE':
+            return 'fa-plus';
+        case 'UPDATE':
+            return 'fa-edit';
+        case 'DELETE':
+            return 'fa-trash';
+        default:
+            return 'fa-circle';
+    }
+}
+
+// 获取操作类型对应的文本
+function getActionText(action) {
+    switch(action) {
+        case 'BLACKLIST':
+            return '拉黑';
+        case 'UNBLACKLIST':
+            return '解除拉黑';
+        case 'BATCH_BLACKLIST':
+            return '批量拉黑';
+        case 'CREATE':
+            return '创建';
+        case 'UPDATE':
+            return '更新';
+        case 'DELETE':
+            return '删除';
+        default:
+            return action;
+    }
+}
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+}
+</style>
+
+{% endblock %}

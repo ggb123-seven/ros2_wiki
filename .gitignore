@@ -95,3 +95,15 @@ sessions/
 # Config files that might contain secrets
 config.py
 local_settings.py
+
+# Test files (keep in repo but ignore some)
+test_*.py
+check_*.py
+verify_*.py
+
+# Claude monitoring files
+.claude/
+claude_*.py
+claude_*.md
+claude_*.json
+claude_*.log

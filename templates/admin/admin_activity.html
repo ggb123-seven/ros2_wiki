@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}管理员活动摘要 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-chart-line text-success"></i> 管理员活动摘要
+                </h2>
+                <div>
+                    <a href="{{ url_for('permissions.audit_logs') }}" class="btn btn-outline-info">
+                        <i class="fas fa-clipboard-list"></i> 审计日志
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-home"></i> 管理后台
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="admin_id" class="form-label">管理员</label>
+                            <select class="form-select" id="admin_id" name="admin_id">
+                                <option value="">全部管理员</option>
+                                {% for admin in admins %}
+                                <option value="{{ admin.id }}" {{ 'selected' if current_admin_id == admin.id|string }}>
+                                    {{ admin.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="days" class="form-label">时间范围</label>
+                            <select class="form-select" id="days" name="days">
+                                <option value="7" {{ 'selected' if period_days == 7 }}>最近7天</option>
+                                <option value="30" {{ 'selected' if period_days == 30 }}>最近30天</option>
+                                <option value="90" {{ 'selected' if period_days == 90 }}>最近90天</option>
+                                <option value="365" {{ 'selected' if period_days == 365 }}>最近一年</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> 查询
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 安全警报 -->
+    {% if security_alerts %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> 安全警报
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for alert in security_alerts %}
+                    <div class="alert alert-{{ 'danger' if alert.severity == 'HIGH' else 'warning' if alert.severity == 'MEDIUM' else 'info' }} alert-dismissible fade show">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ alert.type }}:</strong> {{ alert.message }}
+                                <br><small class="text-muted">管理员: {{ alert.admin }}, 次数: {{ alert.count }}</small>
+                            </div>
+                            <span class="badge bg-{{ 'danger' if alert.severity == 'HIGH' else 'warning' if alert.severity == 'MEDIUM' else 'info' }}">
+                                {{ alert.severity }}
+                            </span>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 活动统计 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> 操作类型统计
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if activity_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>操作类型</th>
+                                    <th>管理员</th>
+                                    <th>次数</th>
+                                    <th>占比</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_actions = activity_stats|sum(attribute='count') %}
+                                {% for stat in activity_stats %}
+                                <tr>
+                                    <td>
+                                        {% if stat.action == 'BLACKLIST' %}
+                                            <span class="badge bg-warning">拉黑</span>
+                                        {% elif stat.action == 'UNBLACKLIST' %}
+                                            <span class="badge bg-success">解除拉黑</span>
+                                        {% elif stat.action == 'BATCH_BLACKLIST' %}
+                                            <span class="badge bg-warning">批量拉黑</span>
+                                        {% elif stat.action == 'CREATE' %}
+                                            <span class="badge bg-primary">创建</span>
+                                        {% elif stat.action == 'UPDATE' %}
+                                            <span class="badge bg-info">更新</span>
+                                        {% elif stat.action == 'DELETE' %}
+                                            <span class="badge bg-danger">删除</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ stat.action }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ stat.admin_name or '系统' }}</td>
+                                    <td><strong>{{ stat.count }}</strong></td>
+                                    <td>
+                                        {% set percentage = (stat.count / total_actions * 100) if total_actions > 0 else 0 %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ percentage }}%">
+                                                {{ "%.1f"|format(percentage) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                        <p>暂无活动数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users-cog"></i> 最活跃管理员
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if active_admins %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>管理员</th>
+                                    <th>邮箱</th>
+                                    <th>操作次数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for admin in active_admins %}
+                                <tr>
+                                    <td>
+                                        {% if loop.index == 1 %}
+                                            <i class="fas fa-trophy text-warning"></i>
+                                        {% elif loop.index == 2 %}
+                                            <i class="fas fa-medal text-secondary"></i>
+                                        {% elif loop.index == 3 %}
+                                            <i class="fas fa-award text-warning"></i>
+                                        {% else %}
+                                            {{ loop.index }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-shield text-primary me-2"></i>
+                                            <strong>{{ admin.username }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ admin.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ admin.total_actions }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-users-cog fa-2x mb-2"></i>
+                        <p>暂无活动数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 活动趋势图 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line"></i> 活动趋势 (最近{{ period_days }}天)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ activity_stats|sum(attribute='count') }}</h4>
+                                <p class="text-muted mb-0">总操作数</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ active_admins|length }}</h4>
+                                <p class="text-muted mb-0">活跃管理员</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                {% set blacklist_actions = activity_stats|selectattr('action', 'in', ['BLACKLIST', 'BATCH_BLACKLIST'])|sum(attribute='count') %}
+                                <h4 class="text-warning">{{ blacklist_actions }}</h4>
+                                <p class="text-muted mb-0">拉黑操作</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                {% set avg_daily = (activity_stats|sum(attribute='count') / period_days)|round(1) if period_days > 0 else 0 %}
+                                <h4 class="text-info">{{ avg_daily }}</h4>
+                                <p class="text-muted mb-0">日均操作</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt"></i> 快速操作
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.audit_logs') }}" class="btn btn-info btn-lg w-100">
+                                <i class="fas fa-clipboard-list me-2"></i>查看详细日志
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.users') }}" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-users me-2"></i>用户管理
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.blacklisted_users') }}" class="btn btn-warning btn-lg w-100">
+                                <i class="fas fa-ban me-2"></i>黑名单管理
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.export_audit_logs') }}" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-download me-2"></i>导出日志
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+}
+
+.alert {
+    border-radius: 10px;
+}
+
+.btn-lg {
+    border-radius: 10px;
+}
+</style>
+
+{% endblock %}

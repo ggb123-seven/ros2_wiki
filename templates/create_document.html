@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}创建新文档 - ROS2 Wiki{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus-circle"></i> 创建新文档
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-heading"></i> 文档标题
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   placeholder="请输入文档标题" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">
+                                <i class="fas fa-folder"></i> 分类
+                            </label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">请选择分类</option>
+                                <option value="ROS2基础">ROS2基础</option>
+                                <option value="ROS2进阶">ROS2进阶</option>
+                                <option value="ROS2工具">ROS2工具</option>
+                                <option value="机器人导航">机器人导航</option>
+                                <option value="SLAM技术">SLAM技术</option>
+                                <option value="机器视觉">机器视觉</option>
+                                <option value="硬件集成">硬件集成</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="content" class="form-label">
+                                <i class="fas fa-edit"></i> 文档内容 (支持Markdown格式)
+                            </label>
+                            <textarea class="form-control" id="content" name="content" rows="20" 
+                                      placeholder="请输入文档内容，支持Markdown格式..." required></textarea>
+                            <div class="form-text">
+                                <strong>Markdown语法提示：</strong><br>
+                                # 一级标题 &nbsp;&nbsp; ## 二级标题 &nbsp;&nbsp; **粗体** &nbsp;&nbsp; *斜体* &nbsp;&nbsp; 
+                                `代码` &nbsp;&nbsp; ```代码块``` &nbsp;&nbsp; [链接](URL) &nbsp;&nbsp; ![图片](URL)
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 返回管理后台
+                            </a>
+                            <div>
+                                <button type="button" class="btn btn-info me-2" onclick="previewContent()">
+                                    <i class="fas fa-eye"></i> 预览
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 创建文档
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 预览区域 -->
+            <div id="preview-area" class="card mt-4" style="display: none;">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye"></i> 内容预览
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="preview-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewContent() {
+    const content = document.getElementById('content').value;
+    const previewArea = document.getElementById('preview-area');
+    const previewContent = document.getElementById('preview-content');
+    
+    if (content.trim()) {
+        // 简单的Markdown预览（基础转换）
+        let html = content
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*)\*/gim, '<em>$1</em>')
+            .replace(/`([^`]+)`/gim, '<code>$1</code>')
+            .replace(/```([^```]+)```/gim, '<pre><code>$1</code></pre>')
+            .replace(/\n/gim, '<br>');
+        
+        previewContent.innerHTML = html;
+        previewArea.style.display = 'block';
+        previewArea.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        alert('请先输入内容');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}黑名单用户 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-ban text-danger"></i> 黑名单用户
+                </h2>
+                <div>
+                    <a href="{{ url_for('permissions.users') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回用户管理
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-home"></i> 管理后台
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ pagination.total }}</h4>
+                            <p class="card-text">黑名单用户</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-ban fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 黑名单用户列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> 黑名单用户列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>拉黑时间</th>
+                                    <th>拉黑原因</th>
+                                    <th width="150">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ user.id }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle text-danger me-2"></i>
+                                            <strong>{{ user.username }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if user.blacklisted_at %}
+                                                {{ user.blacklisted_at[:16] }}
+                                            {% else %}
+                                                未知
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">
+                                            {{ user.blacklist_reason or '无原因记录' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <!-- 解除拉黑按钮 -->
+                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                    onclick="unblacklistUser({{ user.id }}, '{{ user.username }}')" 
+                                                    title="解除拉黑">
+                                                <i class="fas fa-unlock"></i> 解除
+                                            </button>
+                                            
+                                            <!-- 查看日志按钮 -->
+                                            <a href="{{ url_for('permissions.user_logs', user_id=user.id) }}" 
+                                               class="btn btn-outline-info btn-sm" title="查看操作日志">
+                                                <i class="fas fa-history"></i> 日志
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-muted">暂无黑名单用户</h5>
+                        <p class="text-muted">当前没有被拉黑的用户</p>
+                        <a href="{{ url_for('permissions.users') }}" class="btn btn-primary">
+                            <i class="fas fa-users"></i> 查看所有用户
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.total_pages > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="黑名单用户分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.blacklisted_users', page=pagination.page-1) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('permissions.blacklisted_users', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                        {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('permissions.blacklisted_users', page=pagination.page+1) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 隐藏的表单用于提交操作 -->
+<form id="hiddenForm" method="POST" style="display: none;">
+</form>
+
+<script>
+// 解除拉黑
+function unblacklistUser(userId, username) {
+    if (confirm(`确定要解除用户 "${username}" 的拉黑状态吗？`)) {
+        const form = document.getElementById('hiddenForm');
+        form.action = `/admin/users/${userId}/unblacklist`;
+        form.submit();
+    }
+}
+</script>
+
+<style>
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(220,53,69,0.1);
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+</style>
+
+{% endblock %}

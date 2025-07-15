@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}管理员后台 - ROS2 Wiki{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-tachometer-alt text-primary"></i> 管理员后台
+                </h2>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt"></i> 退出登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ user_count }}</h4>
+                            <p class="card-text">注册用户</p>
+                            <small>黑名单: {{ blacklisted_count or 0 }}</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('permissions.users') }}" class="text-white">
+                        <i class="fas fa-arrow-right"></i> 管理用户
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-book fa-3x mb-3"></i>
+                    <h3>{{ doc_count }}</h3>
+                    <p class="mb-0">技术文档</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <h3>{{ comment_count }}</h3>
+                    <p class="mb-0">用户评论</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <h3>运行中</h3>
+                    <p class="mb-0">系统状态</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt"></i> 快速操作
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('create_document') }}" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-plus-circle me-2"></i>创建新文档
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.users') }}" class="btn btn-warning btn-lg w-100">
+                                <i class="fas fa-users me-2"></i>用户管理
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('permissions.blacklisted_users') }}" class="btn btn-danger btn-lg w-100">
+                                <i class="fas fa-ban me-2"></i>黑名单管理
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('health') }}" class="btn btn-info btn-lg w-100">
+                                <i class="fas fa-heartbeat me-2"></i>系统健康检查
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最新注册用户 -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus"></i> 最新注册用户
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>权限</th>
+                                    <th>注册时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>
+                                        <i class="fas fa-user-circle text-primary me-1"></i>
+                                        {{ user.username }}
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-danger">管理员</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">普通用户</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ user.created_at[:16] if user.created_at else 'N/A' }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <p>暂无注册用户</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 最新文档 -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book-open"></i> 最新文档
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_docs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>标题</th>
+                                    <th>分类</th>
+                                    <th>作者</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in recent_docs %}
+                                <tr>
+                                    <td>{{ doc.id }}</td>
+                                    <td>
+                                        <a href="{{ url_for('view_document', doc_id=doc.id) }}" 
+                                           class="text-decoration-none">
+                                            {{ doc.title[:30] }}{% if doc.title|length > 30 %}...{% endif %}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ doc.category }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ doc.username }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('view_document', doc_id=doc.id) }}"
+                                               class="btn btn-sm btn-outline-primary" title="查看">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('admin_edit_document', doc_id=doc.id) }}"
+                                               class="btn btn-sm btn-outline-warning" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    title="删除" onclick="confirmDelete({{ doc.id }}, '{{ doc.title }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-book fa-3x mb-3"></i>
+                        <p>暂无文档</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-card {
+    transition: transform 0.3s ease;
+    border: none;
+    border-radius: 15px;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+}
+
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+</style>
+
+<!-- 隐藏的删除表单 -->
+<form id="deleteForm" method="POST" style="display: none;">
+</form>
+
+<script>
+function confirmDelete(docId, docTitle) {
+    if (confirm(`确定要删除文档 "${docTitle}" 吗？\n\n此操作不可撤销，将同时删除该文档的所有评论。`)) {
+        const form = document.getElementById('deleteForm');
+        form.action = `/admin/delete_document/${docId}`;
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

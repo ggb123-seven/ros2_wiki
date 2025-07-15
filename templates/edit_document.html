@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if document %}编辑文档{% else %}新建文档{% endif %} - 管理后台
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">管理后台</a></li>
+                <li class="breadcrumb-item active">
+                    {% if document %}编辑文档{% else %}新建文档{% endif %}
+                </li>
+            </ol>
+        </nav>
+        
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>
+                    <i class="fas fa-edit"></i> 
+                    {% if document %}编辑文档: {{ document.title }}{% else %}新建文档{% endif %}
+                </h4>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">
+                                    <i class="fas fa-heading"></i> 文档标题 *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="title" 
+                                       name="title" 
+                                       value="{{ document.title if document else '' }}"
+                                       placeholder="输入文档标题..."
+                                       required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="category" class="form-label">
+                                    <i class="fas fa-folder"></i> 分类
+                                </label>
+                                <select class="form-select" id="category" name="category">
+                                    <option value="ROS2基础" {% if document and document.category == 'ROS2基础' %}selected{% endif %}>ROS2基础</option>
+                                    <option value="ROS2进阶" {% if document and document.category == 'ROS2进阶' %}selected{% endif %}>ROS2进阶</option>
+                                    <option value="ROS2工具" {% if document and document.category == 'ROS2工具' %}selected{% endif %}>ROS2工具</option>
+                                    <option value="机器人应用" {% if document and document.category == '机器人应用' %}selected{% endif %}>机器人应用</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">
+                            <i class="fas fa-file-alt"></i> 文档内容 * 
+                            <small class="text-muted">(支持Markdown格式)</small>
+                        </label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <textarea class="form-control" 
+                                          id="content" 
+                                          name="content" 
+                                          rows="20"
+                                          placeholder="输入Markdown格式的文档内容..."
+                                          required>{{ document.content if document else '' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <small><i class="fas fa-eye"></i> 实时预览</small>
+                                    </div>
+                                    <div class="card-body" style="height: 500px; overflow-y: auto;">
+                                        <div id="preview-content" class="markdown-content">
+                                            <p class="text-muted">在左侧编辑内容以查看预览...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-info-circle"></i> Markdown语法提示</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small>
+                                            <strong>标题:</strong> # 一级标题, ## 二级标题<br>
+                                            <strong>加粗:</strong> **粗体文字**<br>
+                                            <strong>代码:</strong> `行内代码` 或 ```语言名```<br>
+                                            <strong>链接:</strong> [链接文字](URL)
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small>
+                                            <strong>列表:</strong> - 或 1. 开头<br>
+                                            <strong>引用:</strong> > 引用文字<br>
+                                            <strong>图片:</strong> ![描述](图片URL)<br>
+                                            <strong>分割线:</strong> ---
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> 
+                                {% if document %}更新文档{% else %}创建文档{% endif %}
+                            </button>
+                            {% if document %}
+                            <a href="{{ url_for('view_document', doc_id=document.id) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i> 预览
+                            </a>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> 取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentTextarea = document.getElementById('content');
+    const previewDiv = document.getElementById('preview-content');
+    
+    // 初始化预览
+    updatePreview();
+    
+    // 实时更新预览
+    contentTextarea.addEventListener('input', updatePreview);
+    
+    function updatePreview() {
+        const content = contentTextarea.value;
+        if (content.trim() === '') {
+            previewDiv.innerHTML = '<p class="text-muted">在左侧编辑内容以查看预览...</p>';
+            return;
+        }
+        
+        try {
+            // 使用marked.js渲染Markdown
+            const html = marked.parse(content);
+            previewDiv.innerHTML = html;
+            
+            // 重新应用代码高亮
+            if (typeof hljs !== 'undefined') {
+                previewDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }
+        } catch (error) {
+            previewDiv.innerHTML = '<p class="text-danger">预览错误: ' + error.message + '</p>';
+        }
+    }
+    
+    // 添加一些快捷键
+    contentTextarea.addEventListener('keydown', function(e) {
+        // Ctrl+S 保存
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            this.form.submit();
+        }
+        
+        // Tab键插入缩进
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            const value = this.value;
+            
+            this.value = value.substring(0, start) + '    ' + value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 4;
+            updatePreview();
+        }
+    });
+});
+</script>
+
+<style>
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    color: #2c3e50;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.markdown-content h1 {
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+.markdown-content pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.markdown-content code {
+    background-color: #f8f9fa;
+    color: #e83e8c;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #3498db;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.markdown-content table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+</style>
+{% endblock %}

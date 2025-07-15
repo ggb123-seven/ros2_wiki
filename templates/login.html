@@ -1,29 +1,141 @@
 {% extends "base.html" %}
 
-{% block title %}登录 - ROS2 Wiki{% endblock %}
+{% block title %}欢迎来到 ROS2 Wiki{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>用户登录</h3>
+<div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
+    <div class="row w-100">
+        <!-- 左侧欢迎信息 -->
+        <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center">
+            <div class="text-center text-white">
+                <div class="welcome-content">
+                    <h1 class="display-4 fw-bold mb-4">
+                        🤖 欢迎来到 ROS2 Wiki
+                    </h1>
+                    <p class="lead mb-4">
+                        学习ROS2机器人操作系统的最佳平台<br>
+                        掌握现代机器人开发技术
+                    </p>
+                    <div class="features-list">
+                        <div class="feature-item mb-3">
+                            <i class="fas fa-book-open fa-2x text-warning mb-2"></i>
+                            <h5>丰富的教程内容</h5>
+                            <p class="small">从基础到进阶，全面覆盖ROS2知识点</p>
+                        </div>
+                        <div class="feature-item mb-3">
+                            <i class="fas fa-users fa-2x text-info mb-2"></i>
+                            <h5>活跃的社区</h5>
+                            <p class="small">与其他开发者交流学习经验</p>
+                        </div>
+                        <div class="feature-item mb-3">
+                            <i class="fas fa-rocket fa-2x text-success mb-2"></i>
+                            <h5>实战项目</h5>
+                            <p class="small">通过实际项目提升技能</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+        </div>
+
+        <!-- 右侧登录表单 -->
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+            <div class="login-form-container">
+                <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+                    <div class="card-header bg-primary text-white text-center py-4">
+                        <h3 class="mb-0">
+                            <i class="fas fa-sign-in-alt me-2"></i>用户登录
+                        </h3>
+                        <p class="mb-0 mt-2 small">登录后开始您的ROS2学习之旅</p>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">密码</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                    <div class="card-body p-4">
+                        {% with messages = get_flashed_messages() %}
+                            {% if messages %}
+                                {% for message in messages %}
+                                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>{{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="fas fa-user me-1"></i>用户名
+                                </label>
+                                <input type="text" class="form-control form-control-lg"
+                                       id="username" name="username"
+                                       placeholder="请输入用户名" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>密码
+                                </label>
+                                <input type="password" class="form-control form-control-lg"
+                                       id="password" name="password"
+                                       placeholder="请输入密码" required>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i>立即登录
+                                </button>
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="text-center">
+                            <p class="mb-2">还没有账户？</p>
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-user-plus me-2"></i>立即注册
+                            </a>
+                        </div>
+
+                        <!-- 演示账户信息 -->
+                        <div class="mt-4 p-3 bg-light rounded">
+                            <h6 class="text-muted mb-2">
+                                <i class="fas fa-info-circle me-1"></i>演示账户
+                            </h6>
+                            <small class="text-muted">
+                                <strong>管理员：</strong> ros2_admin / admin123<br>
+                                <strong>普通用户：</strong> ros2_user / user123
+                            </small>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">登录</button>
-                    <a href="{{ url_for('register') }}" class="btn btn-link">还没有账户？注册</a>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.welcome-content {
+    max-width: 500px;
+}
+
+.feature-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-form-container {
+    width: 100%;
+    max-width: 450px;
+}
+
+@media (max-width: 991px) {
+    .container-fluid {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+
+    .login-form-container {
+        margin: 2rem 0;
+    }
+}
+</style>
 {% endblock %}
