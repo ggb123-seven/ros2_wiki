@@ -14,10 +14,17 @@ from functools import wraps
 # 条件导入psycopg2，避免在没有PostgreSQL时出错
 try:
     import psycopg2
+    import psycopg2.extras
     HAS_POSTGRESQL = True
-except ImportError:
-    HAS_POSTGRESQL = False
-    print("Warning: psycopg2 not available, using SQLite only")
+    print("✅ PostgreSQL driver (psycopg2) loaded successfully")
+except ImportError as e:
+    try:
+        import psycopg2
+        HAS_POSTGRESQL = True
+        print("✅ PostgreSQL driver (psycopg2) loaded successfully")
+    except ImportError:
+        HAS_POSTGRESQL = False
+        print(f"Warning: psycopg2 not available ({e}), using SQLite only")
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
