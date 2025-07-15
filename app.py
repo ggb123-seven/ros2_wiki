@@ -279,6 +279,11 @@ def init_database():
                 VALUES (?, ?, ?, ?)
             ''', ('ros2_user', 'user@ros2wiki.com', user_password, False))
 
+        # 获取管理员用户ID
+        cursor.execute('SELECT id FROM users WHERE is_admin = TRUE LIMIT 1')
+        admin_user = cursor.fetchone()
+        admin_id = admin_user[0] if admin_user else 1
+
         # 创建示例文档
         cursor.execute('''
             INSERT INTO documents (title, content, category, author_id)
@@ -322,7 +327,7 @@ sudo apt install ros-humble-desktop
 - 创建工作空间
 - 编写第一个节点
 - 学习话题通信
-''', '基础教程', 1))
+''', '基础教程', admin_id))
 
         cursor.execute('''
             INSERT INTO documents (title, content, category, author_id)
@@ -397,7 +402,7 @@ def main(args=None):
 ## 动作通信（Actions）
 
 动作用于长时间运行的任务，提供反馈机制。
-''', '进阶教程', 1))
+''', '进阶教程', admin_id))
 
         cursor.execute('''
             INSERT INTO documents (title, content, category, author_id)
@@ -433,7 +438,7 @@ colcon build --packages-select my_package
 ```bash
 source ~/ros2_ws/install/setup.bash
 ```
-''', '工具使用', 1))
+''', '工具使用', admin_id))
 
         conn.commit()
         print("✅ 默认用户和示例文档已创建")
@@ -1283,20 +1288,30 @@ def init_sample_data():
                 cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, %s, %s)',
                               ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), False))
 
+                # 获取管理员ID
+                cursor.execute('SELECT id FROM users WHERE is_admin = TRUE LIMIT 1')
+                admin_user = cursor.fetchone()
+                admin_id = admin_user[0] if admin_user else 1
+
                 # 添加所有示例教程
                 for tutorial in sample_tutorials:
                     cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (%s, %s, %s, %s)',
-                                  (tutorial['title'], tutorial['content'], 1, tutorial['category']))
+                                  (tutorial['title'], tutorial['content'], admin_id, tutorial['category']))
             else:
                 cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
                               (admin_username, admin_email, admin_hash, 1))
                 cursor.execute('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
                               ('ros2_user', 'user@ros2wiki.com', generate_password_hash('user123'), 0))
 
+                # 获取管理员ID
+                cursor.execute('SELECT id FROM users WHERE is_admin = 1 LIMIT 1')
+                admin_user = cursor.fetchone()
+                admin_id = admin_user[0] if admin_user else 1
+
                 # 添加所有示例教程
                 for tutorial in sample_tutorials:
                     cursor.execute('INSERT INTO documents (title, content, author_id, category) VALUES (?, ?, ?, ?)',
-                                  (tutorial['title'], tutorial['content'], 1, tutorial['category']))
+                                  (tutorial['title'], tutorial['content'], admin_id, tutorial['category']))
             
             conn.commit()
             print("示例数据初始化完成")
