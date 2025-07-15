@@ -6,6 +6,14 @@ from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 from datetime import datetime
+
+# PostgreSQL支持
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_POSTGRESQL = True
+except ImportError:
+    HAS_POSTGRESQL = False
 # 安全装饰器定义
 from functools import wraps
 
@@ -34,30 +42,51 @@ permissions_bp = Blueprint('permissions', __name__, url_prefix='/admin/users')
 
 class UserManager:
     """用户管理器"""
-    
-    def __init__(self, db_path):
-        self.db_path = db_path
+
+    def __init__(self, db_path_or_url):
+        self.db_path_or_url = db_path_or_url
+        # 检测数据库类型
+        if db_path_or_url and 'postgresql' in db_path_or_url and HAS_POSTGRESQL:
+            self.use_postgresql = True
+        else:
+            self.use_postgresql = False
+            # 如果是SQLite URL格式，提取路径
+            if db_path_or_url and db_path_or_url.startswith('sqlite:///'):
+                self.db_path_or_url = db_path_or_url[10:]
+
+    def get_db_connection(self):
+        """获取数据库连接"""
+        if self.use_postgresql:
+            conn = psycopg2.connect(self.db_path_or_url)
+            return conn
+        else:
+            conn = sqlite3.connect(self.db_path_or_url)
+            conn.row_factory = sqlite3.Row
+            return conn
     
     def get_all_users(self, page=1, per_page=10, search=None):
         """获取所有用户列表"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+
             # 构建查询条件
             where_clause = ""
             params = []
-            
+
             if search:
-                where_clause = "WHERE username LIKE ? OR email LIKE ?"
+                where_clause = f"WHERE username LIKE {placeholder} OR email LIKE {placeholder}"
                 params.extend([f"%{search}%", f"%{search}%"])
             
             # 获取总数
             count_sql = f"SELECT COUNT(*) as total FROM users {where_clause}"
             cursor.execute(count_sql, params)
-            total = cursor.fetchone()['total']
-            
+            result = cursor.fetchone()
+            total = result['total'] if not self.use_postgresql else result[0]
+
             # 获取分页数据
             offset = (page - 1) * per_page
             data_sql = f"""
@@ -65,7 +94,7 @@ class UserManager:
                    blacklisted_at, blacklist_reason, last_seen, created_at
             FROM users {where_clause}
             ORDER BY created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT {placeholder} OFFSET {placeholder}
             """
             cursor.execute(data_sql, params + [per_page, offset])
             users = cursor.fetchall()
@@ -87,15 +116,15 @@ class UserManager:
     def get_user(self, user_id):
         """获取单个用户详情"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = self.get_db_connection()
             cursor = conn.cursor()
-            
-            cursor.execute("""
+
+            placeholder = "%s" if self.use_postgresql else "?"
+            cursor.execute(f"""
             SELECT id, username, email, is_admin, is_blacklisted,
                    blacklisted_at, blacklist_reason, last_seen, created_at
             FROM users
-            WHERE id = ?
+            WHERE id = {placeholder}
             """, [user_id])
             
             user = cursor.fetchone()
@@ -324,24 +353,36 @@ class UserManager:
             if user_id == current_user.id:
                 return False, "不能拉黑当前登录的用户"
 
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
 
+            # 根据数据库类型选择占位符和函数
+            placeholder = "%s" if self.use_postgresql else "?"
+
             # 检查用户是否存在
-            cursor.execute("SELECT id, username FROM users WHERE id = ?", [user_id])
+            cursor.execute(f"SELECT id, username FROM users WHERE id = {placeholder}", [user_id])
             user = cursor.fetchone()
             if not user:
                 conn.close()
                 return False, "用户不存在"
 
             # 更新用户黑名单状态
-            cursor.execute("""
-                UPDATE users
-                SET is_blacklisted = 1,
-                    blacklisted_at = datetime('now'),
-                    blacklist_reason = ?
-                WHERE id = ?
-            """, [reason, user_id])
+            if self.use_postgresql:
+                cursor.execute("""
+                    UPDATE users
+                    SET is_blacklisted = TRUE,
+                        blacklisted_at = CURRENT_TIMESTAMP,
+                        blacklist_reason = %s
+                    WHERE id = %s
+                """, [reason, user_id])
+            else:
+                cursor.execute("""
+                    UPDATE users
+                    SET is_blacklisted = 1,
+                        blacklisted_at = datetime('now'),
+                        blacklist_reason = ?
+                    WHERE id = ?
+                """, [reason, user_id])
 
             # 记录操作日志
             self.log_user_action(cursor, admin_id, user_id, 'BLACKLIST', reason)
@@ -396,10 +437,12 @@ class UserManager:
     def is_user_blacklisted(self, user_id):
         """检查用户是否被拉黑"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
 
-            cursor.execute("SELECT is_blacklisted FROM users WHERE id = ?", [user_id])
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+            cursor.execute(f"SELECT is_blacklisted FROM users WHERE id = {placeholder}", [user_id])
             result = cursor.fetchone()
             conn.close()
 
@@ -412,22 +455,29 @@ class UserManager:
     def get_blacklisted_users(self, page=1, per_page=10):
         """获取黑名单用户列表"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = self.get_db_connection()
             cursor = conn.cursor()
 
+            # 根据数据库类型选择boolean值和占位符
+            if self.use_postgresql:
+                boolean_condition = "is_blacklisted = TRUE"
+                placeholder = "%s"
+            else:
+                boolean_condition = "is_blacklisted = 1"
+                placeholder = "?"
+
             # 计算总数
-            cursor.execute("SELECT COUNT(*) FROM users WHERE is_blacklisted = 1")
+            cursor.execute(f"SELECT COUNT(*) FROM users WHERE {boolean_condition}")
             total = cursor.fetchone()[0]
 
             # 分页查询
             offset = (page - 1) * per_page
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT id, username, email, blacklisted_at, blacklist_reason
                 FROM users
-                WHERE is_blacklisted = 1
+                WHERE {boolean_condition}
                 ORDER BY blacklisted_at DESC
-                LIMIT ? OFFSET ?
+                LIMIT {placeholder} OFFSET {placeholder}
             """, [per_page, offset])
 
             users = cursor.fetchall()
@@ -839,10 +889,16 @@ class UserManager:
 # 获取用户管理器实例
 def get_user_manager():
     """获取用户管理器实例"""
-    db_path = os.environ.get('SQLITE_DATABASE_URL', 'sqlite:///ros2_wiki.db')
-    if db_path.startswith('sqlite:///'):
-        db_path = db_path[10:]
-    return UserManager(db_path)
+    # 优先使用PostgreSQL URL，回退到SQLite
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        return UserManager(db_url)
+    else:
+        # 使用SQLite作为回退
+        db_path = os.environ.get('SQLITE_DATABASE_URL', 'sqlite:///ros2_wiki.db')
+        if db_path.startswith('sqlite:///'):
+            db_path = db_path[10:]
+        return UserManager(db_path)
 
 # 路由定义
 @permissions_bp.route('/')
