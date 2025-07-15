@@ -68,7 +68,7 @@ def create_cloud_admin(cursor, conn):
     try:
         admin_username = 'ssss'
         admin_email = 'seventee_0611@qq.com'
-        admin_password = 'ssss123'
+        admin_password = 'Ssss123!'
         
         # Generate password hash
         password_hash = generate_password_hash(admin_password)
@@ -211,7 +211,7 @@ def main():
                     print("\n📋 Login Information:")
                     print("   URL: [Your Cloud App URL]/login")
                     print("   Username: ssss")
-                    print("   Password: ssss123")
+                    print("   Password: Ssss123!")
                     print("   Email: seventee_0611@qq.com")
                     return True
         

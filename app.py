@@ -237,7 +237,7 @@ def init_database():
         # 创建云端管理员账户（优先）
         cloud_admin_username = os.environ.get('ADMIN_USERNAME', 'ssss')
         cloud_admin_email = os.environ.get('ADMIN_EMAIL', 'seventee_0611@qq.com')
-        cloud_admin_password = os.environ.get('ADMIN_PASSWORD', 'ssss123')
+        cloud_admin_password = os.environ.get('ADMIN_PASSWORD', 'Ssss123!')
 
         if os.environ.get('AUTO_CREATE_ADMIN', 'false').lower() == 'true':
             admin_password_hash = generate_password_hash(cloud_admin_password)
@@ -254,7 +254,7 @@ def init_database():
             print(f"✅ Created cloud admin account: {cloud_admin_username}")
 
         # 创建默认管理员用户（备用）
-        admin_password = generate_password_hash('admin123')
+        admin_password = generate_password_hash('Admin123!')
         if use_postgresql:
             cursor.execute('''
                 INSERT INTO users (username, email, password_hash, is_admin)
@@ -1276,7 +1276,7 @@ def init_sample_data():
         if user_count == 0:
             # 创建默认管理员
             admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-            admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin123!')
             admin_email = os.environ.get('ADMIN_EMAIL', 'admin@ros2wiki.com')
             
             admin_hash = generate_password_hash(admin_password)

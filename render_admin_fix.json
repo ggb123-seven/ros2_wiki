@@ -1,0 +1,20 @@
+{
+  "envVars": [
+    {
+      "key": "MIN_PASSWORD_LENGTH",
+      "value": "6"
+    },
+    {
+      "key": "ADMIN_PASSWORD",
+      "value": "ssss1234"
+    },
+    {
+      "key": "SKIP_PASSWORD_VALIDATION",
+      "value": "true"
+    },
+    {
+      "key": "FORCE_ADMIN_CREATION",
+      "value": "true"
+    }
+  ]
+}

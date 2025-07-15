@@ -23,7 +23,7 @@ services:
       - key: ADMIN_EMAIL
         value: "seventee_0611@qq.com"
       - key: ADMIN_PASSWORD
-        value: "ssss123"
+        value: "Ssss123!"
       - key: AUTO_CREATE_ADMIN
         value: "true"
 
