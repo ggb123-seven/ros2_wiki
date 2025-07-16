@@ -152,7 +152,7 @@
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            {{ user.created_at[:16] if user.created_at else 'N/A' }}
+                                            {{ user.created_at|dt_format if user.created_at else 'N/A' }}
                                         </small>
                                     </td>
                                 </tr>

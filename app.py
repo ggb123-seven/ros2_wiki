@@ -114,6 +114,7 @@ class DatabaseCompatibility:
     - Boolean值处理：PostgreSQL使用TRUE/FALSE，SQLite使用1/0
     - 占位符转换：PostgreSQL使用%s，SQLite使用?
     - 时间戳函数：PostgreSQL使用CURRENT_TIMESTAMP，SQLite使用datetime('now')
+    - Datetime格式化：PostgreSQL返回datetime对象，SQLite返回字符串
     - 查询优化：提供统一的查询构建接口
 
     使用示例：
@@ -134,6 +135,11 @@ class DatabaseCompatibility:
         query, limit_params = DatabaseCompatibility.build_limit_offset_query(
             "SELECT * FROM documents", 10, 20, use_postgresql
         )
+
+        # Datetime格式化
+        formatted_time = DatabaseCompatibility.format_datetime(datetime_obj)
+        # PostgreSQL: "2024-07-16 14:30"
+        # SQLite: "2024-07-16 14:30"
     """
 
     @staticmethod
@@ -246,6 +252,48 @@ class DatabaseCompatibility:
 
         condition_str = "(" + " OR ".join(conditions) + ")"
         return condition_str, params
+
+    @staticmethod
+    def format_datetime(dt, format_str='%Y-%m-%d %H:%M'):
+        """统一的datetime格式化方法
+
+        兼容PostgreSQL的datetime对象和SQLite的字符串格式，解决模板中
+        datetime对象不支持下标访问的问题。
+
+        Args:
+            dt: datetime对象或字符串
+            format_str: 格式化字符串，默认为'%Y-%m-%d %H:%M'
+
+        Returns:
+            格式化后的时间字符串，如果输入为None则返回'N/A'
+
+        使用示例：
+            # PostgreSQL环境下的datetime对象
+            formatted = DatabaseCompatibility.format_datetime(datetime_obj)
+            # 输出: "2024-07-16 14:30"
+
+            # SQLite环境下的字符串格式
+            formatted = DatabaseCompatibility.format_datetime("2024-07-16 14:30:25")
+            # 输出: "2024-07-16 14:30"
+
+            # 处理None值
+            formatted = DatabaseCompatibility.format_datetime(None)
+            # 输出: "N/A"
+        """
+        if dt is None:
+            return 'N/A'
+
+        # SQLite环境下，datetime字段可能以字符串形式返回
+        if isinstance(dt, str):
+            # 保持向后兼容性，使用切片操作
+            return dt[:16] if len(dt) >= 16 else dt
+
+        # PostgreSQL环境下，datetime字段返回真正的datetime对象
+        try:
+            return dt.strftime(format_str)
+        except (AttributeError, ValueError) as e:
+            # 异常处理：如果不是datetime对象或格式化失败
+            return str(dt) if dt else 'N/A'
 
 def init_database():
     """初始化数据库"""
@@ -2482,6 +2530,41 @@ if os.environ.get('FLASK_ENV') == 'production':
         print("✅ Cloud debug endpoints enabled")
     except ImportError:
         print("⚠️ Cloud debug endpoints not available")
+
+# ============================================================================
+# 全局模板过滤器注册
+# ============================================================================
+
+@app.template_filter('dt_format')
+def datetime_format_filter(value, format='%Y-%m-%d %H:%M'):
+    """全局datetime格式化过滤器
+
+    统一处理模板中的datetime显示，解决PostgreSQL和SQLite环境下
+    datetime对象类型不一致的问题。
+
+    Args:
+        value: datetime对象或字符串
+        format: 格式化字符串，默认为'%Y-%m-%d %H:%M'
+
+    Returns:
+        格式化后的时间字符串
+
+    使用示例：
+        在模板中使用：
+        {{ user.created_at|dt_format }}
+        {{ document.updated_at|dt_format('%Y/%m/%d') }}
+
+    注意：
+        - 自动兼容PostgreSQL的datetime对象和SQLite的字符串格式
+        - 如果输入为None，返回'N/A'
+        - 异常情况下返回原始值的字符串表示
+    """
+    try:
+        return DatabaseCompatibility.format_datetime(value, format)
+    except Exception as e:
+        # 异常处理：确保过滤器在任何情况下都不会导致模板渲染失败
+        print(f"Warning: datetime_format_filter error: {e}")
+        return str(value) if value is not None else 'N/A'
 
 # 本地开发启动函数
 def main():

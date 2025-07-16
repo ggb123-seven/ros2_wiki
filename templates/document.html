@@ -27,9 +27,9 @@
                     <small class="text-muted">
                         <i class="fas fa-folder"></i> 分类：{{ document.category }} | 
                         <i class="fas fa-user"></i> 作者：{{ document.username or '管理员' }} | 
-                        <i class="fas fa-calendar"></i> 发布时间：{{ document.created_at[:16] }}
+                        <i class="fas fa-calendar"></i> 发布时间：{{ document.created_at|dt_format }}
                         {% if document.updated_at != document.created_at %}
-                        | <i class="fas fa-edit"></i> 更新时间：{{ document.updated_at[:16] }}
+                        | <i class="fas fa-edit"></i> 更新时间：{{ document.updated_at|dt_format }}
                         {% endif %}
                     </small>
                 </div>
@@ -73,7 +73,7 @@
                                 <i class="fas fa-user-circle"></i> {{ comment.username or '匿名用户' }}
                             </strong>
                             <small class="text-muted">
-                                <i class="fas fa-clock"></i> {{ comment.created_at[:16] }}
+                                <i class="fas fa-clock"></i> {{ comment.created_at|dt_format }}
                             </small>
                         </div>
                         <div class="comment-content">

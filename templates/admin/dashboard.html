@@ -98,7 +98,7 @@
                                 <td><span class="badge bg-info">{{ doc.category }}</span></td>
                                 <td>{{ doc.username or '管理员' }}</td>
                                 <td>
-                                    <small class="text-muted">{{ doc.created_at[:16] }}</small>
+                                    <small class="text-muted">{{ doc.created_at|dt_format }}</small>
                                 </td>
                                 <td>
                                     <a href="{{ url_for('view_document', doc_id=doc.id) }}" 

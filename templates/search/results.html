@@ -42,7 +42,7 @@
                                 <small class="text-muted">
                                     <i class="fas fa-folder"></i> {{ document.category }} | 
                                     <i class="fas fa-user"></i> {{ document.username or '管理员' }} | 
-                                    <i class="fas fa-calendar"></i> {{ document.created_at[:16] }}
+                                    <i class="fas fa-calendar"></i> {{ document.created_at|dt_format }}
                                 </small>
                             </p>
                             <p class="card-text">
