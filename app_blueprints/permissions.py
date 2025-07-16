@@ -14,6 +14,10 @@ try:
     HAS_POSTGRESQL = True
 except ImportError:
     HAS_POSTGRESQL = False
+
+# 导入安全验证模块
+from .security import PasswordValidator, InputValidator
+
 # 安全装饰器定义
 from functools import wraps
 
@@ -143,37 +147,51 @@ class UserManager:
             is_valid, error = InputValidator.validate_username(username)
             if not is_valid:
                 return False, error
-            
+
             is_valid, error = InputValidator.validate_email(email)
             if not is_valid:
                 return False, error
-            
+
             is_valid, errors = PasswordValidator.validate_password(password)
             if not is_valid:
                 return False, "; ".join(errors)
-            
-            # 检查用户名和邮箱是否已存在
-            conn = sqlite3.connect(self.db_path)
+
+            # 使用统一的数据库连接
+            conn = self.get_db_connection()
             cursor = conn.cursor()
-            
-            cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", [username, email])
+
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+
+            # 检查用户名和邮箱是否已存在
+            cursor.execute(f"SELECT id FROM users WHERE username = {placeholder} OR email = {placeholder}",
+                          [username, email])
             if cursor.fetchone():
                 conn.close()
                 return False, "用户名或邮箱已存在"
-            
+
             # 创建用户
             password_hash = generate_password_hash(password)
-            cursor.execute("""
-            INSERT INTO users (username, email, password_hash, is_admin, created_at)
-            VALUES (?, ?, ?, ?, ?)
-            """, [username, email, password_hash, is_admin, datetime.now()])
-            
-            user_id = cursor.lastrowid
+
+            if self.use_postgresql:
+                cursor.execute("""
+                INSERT INTO users (username, email, password_hash, is_admin, created_at)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING id
+                """, [username, email, password_hash, is_admin])
+                user_id = cursor.fetchone()[0]
+            else:
+                cursor.execute("""
+                INSERT INTO users (username, email, password_hash, is_admin, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """, [username, email, password_hash, is_admin, datetime.now()])
+                user_id = cursor.lastrowid
+
             conn.commit()
             conn.close()
-            
+
             return True, user_id
-            
+
         except Exception as e:
             print(f"创建用户错误: {e}")
             return False, str(e)
@@ -891,13 +909,17 @@ def get_user_manager():
     """获取用户管理器实例"""
     # 优先使用PostgreSQL URL，回退到SQLite
     db_url = os.environ.get('DATABASE_URL')
-    if db_url:
+    if db_url and 'postgresql' in db_url and HAS_POSTGRESQL:
         return UserManager(db_url)
     else:
         # 使用SQLite作为回退
-        db_path = os.environ.get('SQLITE_DATABASE_URL', 'sqlite:///ros2_wiki.db')
+        db_path = os.environ.get('SQLITE_DATABASE_URL', 'ros2_wiki.db')
+        # 如果是sqlite:///格式，提取实际路径
         if db_path.startswith('sqlite:///'):
             db_path = db_path[10:]
+        # 确保使用绝对路径或相对于当前工作目录的路径
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(os.getcwd(), db_path)
         return UserManager(db_path)
 
 # 路由定义

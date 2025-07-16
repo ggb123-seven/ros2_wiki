@@ -47,7 +47,9 @@ login_manager.login_message = '请先登录'
 
 # 注册蓝图
 from app_blueprints.permissions import permissions_bp
+from app_blueprints.errors import errors_bp
 app.register_blueprint(permissions_bp)
+app.register_blueprint(errors_bp)
 
 class User(UserMixin):
     # 初始化用户类
@@ -1324,40 +1326,91 @@ def login():
 def register():
     """用户注册"""
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
-        
-        # 检查用户是否已存在
-        if use_postgresql:
-            cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (username, email))
-        else:
-            cursor.execute('SELECT * FROM users WHERE username = ? OR email = ?', (username, email))
-        
-        if cursor.fetchone():
-            flash('用户名或邮箱已存在')
-            conn.close()
+        import time
+        from datetime import datetime
+
+        # 记录请求开始时间（性能监控）
+        start_time = time.time()
+        request_id = f"reg_{int(start_time * 1000)}"
+
+        # 记录注册尝试开始
+        app.logger.info(f'[{request_id}] 用户注册尝试开始 - IP: {request.remote_addr}, '
+                        f'时间: {datetime.now().isoformat()}, '
+                        f'UA: {request.headers.get("User-Agent", "Unknown")[:50]}')
+
+        try:
+            # 安全获取表单数据
+            username = request.form.get('username', '').strip()
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+
+            # 记录表单数据接收（不记录密码）
+            app.logger.debug(f'[{request_id}] 表单数据接收 - 用户名长度: {len(username) if username else 0}, '
+                            f'邮箱: {"有" if email else "无"}, 密码长度: {len(password) if password else 0}')
+
+            # 基础字段验证
+            if not all([username, email, password]):
+                missing_fields = []
+                if not username: missing_fields.append('username')
+                if not email: missing_fields.append('email')
+                if not password: missing_fields.append('password')
+
+                app.logger.warning(f'[{request_id}] 注册失败: 缺少必填字段 - '
+                                  f'缺失: {", ".join(missing_fields)}, '
+                                  f'用户名: {username if username else "N/A"}, '
+                                  f'邮箱: {email if email else "N/A"}, '
+                                  f'耗时: {round((time.time() - start_time) * 1000, 2)}ms')
+
+                flash('所有字段都是必填的', 'error')
+                return render_template('register.html')
+
+            # 使用现有UserManager创建用户
+            app.logger.debug(f'[{request_id}] 开始用户创建流程 - 用户名: {username}, 邮箱: {email}')
+
+            from app_blueprints.permissions import get_user_manager
+            um = get_user_manager()
+
+            # 记录UserManager调用
+            um_start_time = time.time()
+            success, message = um.create_user(username, email, password, is_admin=False)
+            um_duration = round((time.time() - um_start_time) * 1000, 2)
+
+            if success:
+                total_duration = round((time.time() - start_time) * 1000, 2)
+
+                app.logger.info(f'[{request_id}] 用户注册成功 - '
+                               f'用户名: {username}, 邮箱: {email}, 用户ID: {message}, '
+                               f'总耗时: {total_duration}ms, UserManager耗时: {um_duration}ms')
+
+                flash('注册成功，请登录', 'success')
+                return redirect(url_for('login'))
+            else:
+                total_duration = round((time.time() - start_time) * 1000, 2)
+
+                app.logger.warning(f'[{request_id}] 用户注册失败 - '
+                                  f'用户名: {username}, 邮箱: {email}, '
+                                  f'失败原因: {message}, '
+                                  f'总耗时: {total_duration}ms, UserManager耗时: {um_duration}ms')
+
+                flash(f'注册失败: {message}', 'error')
+                return render_template('register.html')
+
+        except Exception as e:
+            total_duration = round((time.time() - start_time) * 1000, 2)
+
+            app.logger.error(f'[{request_id}] 用户注册异常 - '
+                            f'用户名: {username if "username" in locals() else "N/A"}, '
+                            f'邮箱: {email if "email" in locals() else "N/A"}, '
+                            f'异常类型: {type(e).__name__}, 异常信息: {str(e)}, '
+                            f'总耗时: {total_duration}ms', exc_info=True)
+
+            flash('注册过程中发生错误，请稍后重试', 'error')
             return render_template('register.html')
-        
-        # 创建新用户
-        password_hash = generate_password_hash(password)
-        if use_postgresql:
-            cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)',
-                          (username, email, password_hash))
-        else:
-            cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-                          (username, email, password_hash))
-        
-        conn.commit()
-        conn.close()
-        
-        flash('注册成功，请登录')
-        return redirect(url_for('login'))
-    
+
+    # GET请求日志
+    app.logger.debug(f'注册页面访问 - 方法: GET, IP: {request.remote_addr}, '
+                    f'UA: {request.headers.get("User-Agent", "Unknown")[:50]}')
+
     return render_template('register.html')
 
 @app.route('/logout')

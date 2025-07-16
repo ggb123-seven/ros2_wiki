@@ -2,11 +2,17 @@
 
 import re
 import html
-import bleach
 from werkzeug.security import check_password_hash
 from flask import request, abort
 from functools import wraps
 import os
+
+# 条件导入bleach
+try:
+    import bleach
+    HAS_BLEACH = True
+except ImportError:
+    HAS_BLEACH = False
 
 # 密码强度验证
 class PasswordValidator:
@@ -82,8 +88,8 @@ class InputValidator:
         if not content:
             return ""
         
-        if allow_tags:
-            # 允许安全的HTML标签
+        if allow_tags and HAS_BLEACH:
+            # 允许安全的HTML标签（需要bleach模块）
             return bleach.clean(
                 content,
                 tags=InputValidator.ALLOWED_TAGS,
@@ -91,7 +97,7 @@ class InputValidator:
                 strip=True
             )
         else:
-            # 完全转义HTML
+            # 完全转义HTML（回退方案）
             return html.escape(content)
     
     @staticmethod

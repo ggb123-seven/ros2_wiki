@@ -160,13 +160,13 @@
                                     </td>
                                     <td>
                                         {% if user.last_seen %}
-                                            <small class="text-muted">{{ user.last_seen[:16] }}</small>
+                                            <small class="text-muted">{{ user.last_seen|dt_format }}</small>
                                         {% else %}
                                             <small class="text-muted">从未登录</small>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <small class="text-muted">{{ user.created_at[:16] }}</small>
+                                        <small class="text-muted">{{ user.created_at|dt_format }}</small>
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
