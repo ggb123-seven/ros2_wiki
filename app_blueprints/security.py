@@ -46,16 +46,14 @@ class PasswordValidator:
         if require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
             errors.append("密码必须包含特殊字符")
         
-        # 常见弱密码检查
-        weak_patterns = [
-            r'123456', r'password', r'admin', r'qwerty', 
-            r'abc123', r'111111', r'welcome'
+        # 常见弱密码检查（完整匹配）
+        weak_passwords = [
+            '123456', '123456789', 'password', 'admin', 'qwerty', 
+            'abc123', '111111', 'welcome', 'password123', 'admin123'
         ]
         
-        for pattern in weak_patterns:
-            if re.search(pattern, password.lower()):
-                errors.append("密码不能使用常见弱密码模式")
-                break
+        if password.lower() in weak_passwords:
+            errors.append("密码不能使用常见弱密码")
         
         return len(errors) == 0, errors
 

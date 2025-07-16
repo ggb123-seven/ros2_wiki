@@ -175,16 +175,16 @@ class UserManager:
 
             if self.use_postgresql:
                 cursor.execute("""
-                INSERT INTO users (username, email, password_hash, is_admin, created_at)
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
                 """, [username, email, password_hash, is_admin])
                 user_id = cursor.fetchone()[0]
             else:
                 cursor.execute("""
-                INSERT INTO users (username, email, password_hash, is_admin, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """, [username, email, password_hash, is_admin, datetime.now()])
+                INSERT INTO users (username, email, password_hash, is_admin)
+                VALUES (?, ?, ?, ?)
+                """, [username, email, password_hash, is_admin])
                 user_id = cursor.lastrowid
 
             conn.commit()
@@ -208,13 +208,16 @@ class UserManager:
             if not is_valid:
                 return False, error
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+            
             # 检查用户名和邮箱是否被其他用户使用
-            cursor.execute("""
+            cursor.execute(f"""
             SELECT id FROM users 
-            WHERE (username = ? OR email = ?) AND id != ?
+            WHERE (username = {placeholder} OR email = {placeholder}) AND id != {placeholder}
             """, [username, email, user_id])
             
             if cursor.fetchone():
@@ -222,10 +225,10 @@ class UserManager:
                 return False, "用户名或邮箱已被其他用户使用"
             
             # 更新用户
-            cursor.execute("""
+            cursor.execute(f"""
             UPDATE users 
-            SET username = ?, email = ?, is_admin = ?
-            WHERE id = ?
+            SET username = {placeholder}, email = {placeholder}, is_admin = {placeholder}
+            WHERE id = {placeholder}
             """, [username, email, is_admin, user_id])
             
             conn.commit()

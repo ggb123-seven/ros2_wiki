@@ -2580,9 +2580,9 @@ if os.environ.get('FLASK_ENV') == 'production':
     try:
         from cloud_debug_endpoints import add_debug_endpoints
         app = add_debug_endpoints(app)
-        print("✅ Cloud debug endpoints enabled")
+        print("Success: Cloud debug endpoints enabled")
     except ImportError:
-        print("⚠️ Cloud debug endpoints not available")
+        print("Warning: Cloud debug endpoints not available")
 
 # ============================================================================
 # 全局模板过滤器注册
