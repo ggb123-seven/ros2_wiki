@@ -108,11 +108,46 @@ def get_db_connection():
         return sqlite3.connect(app.config['DATABASE'] or 'ros2_wiki.db')
 
 class DatabaseCompatibility:
-    """数据库兼容性工具类"""
+    """数据库兼容性工具类
+
+    提供PostgreSQL和SQLite之间的兼容性支持，解决以下问题：
+    - Boolean值处理：PostgreSQL使用TRUE/FALSE，SQLite使用1/0
+    - 占位符转换：PostgreSQL使用%s，SQLite使用?
+    - 时间戳函数：PostgreSQL使用CURRENT_TIMESTAMP，SQLite使用datetime('now')
+    - 查询优化：提供统一的查询构建接口
+
+    使用示例：
+        # 判断数据库类型
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+
+        # Boolean查询
+        condition = DatabaseCompatibility.get_boolean_condition('is_admin', True, use_postgresql)
+        # PostgreSQL: "is_admin = TRUE"
+        # SQLite: "is_admin = 1"
+
+        # 搜索条件
+        search_condition, params = DatabaseCompatibility.build_search_condition(
+            ['title', 'content'], 'keyword', use_postgresql
+        )
+
+        # 分页查询
+        query, limit_params = DatabaseCompatibility.build_limit_offset_query(
+            "SELECT * FROM documents", 10, 20, use_postgresql
+        )
+    """
 
     @staticmethod
     def get_boolean_condition(field, value, use_postgresql):
-        """获取boolean字段查询条件"""
+        """获取boolean字段查询条件
+
+        Args:
+            field: 字段名
+            value: boolean值
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            格式化的查询条件字符串
+        """
         if use_postgresql:
             return f"{field} = {'TRUE' if value else 'FALSE'}"
         else:
@@ -120,17 +155,97 @@ class DatabaseCompatibility:
 
     @staticmethod
     def format_query_placeholders(query, use_postgresql):
-        """格式化查询占位符"""
+        """格式化查询占位符
+
+        Args:
+            query: SQL查询字符串
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            格式化后的查询字符串
+        """
         if use_postgresql:
             return query.replace('?', '%s')
         return query
 
     @staticmethod
     def get_boolean_value(value, use_postgresql):
-        """获取boolean值"""
+        """获取boolean值
+
+        Args:
+            value: Python boolean值
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            数据库兼容的boolean值
+        """
         if use_postgresql:
             return 'TRUE' if value else 'FALSE'
         return 1 if value else 0
+
+    @staticmethod
+    def get_placeholder(use_postgresql):
+        """获取单个占位符
+
+        Args:
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            占位符字符串
+        """
+        return '%s' if use_postgresql else '?'
+
+    @staticmethod
+    def get_current_timestamp(use_postgresql):
+        """获取当前时间戳函数
+
+        Args:
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            时间戳函数字符串
+        """
+        return 'CURRENT_TIMESTAMP' if use_postgresql else "datetime('now')"
+
+    @staticmethod
+    def build_limit_offset_query(base_query, limit, offset, use_postgresql):
+        """构建带分页的查询
+
+        Args:
+            base_query: 基础查询字符串
+            limit: 限制数量
+            offset: 偏移量
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            完整的分页查询字符串和参数
+        """
+        placeholder = DatabaseCompatibility.get_placeholder(use_postgresql)
+        query = f"{base_query} LIMIT {placeholder} OFFSET {placeholder}"
+        return query, [limit, offset]
+
+    @staticmethod
+    def build_search_condition(fields, search_term, use_postgresql):
+        """构建搜索条件
+
+        Args:
+            fields: 要搜索的字段列表
+            search_term: 搜索词
+            use_postgresql: 是否使用PostgreSQL
+
+        Returns:
+            搜索条件字符串和参数列表
+        """
+        placeholder = DatabaseCompatibility.get_placeholder(use_postgresql)
+        conditions = []
+        params = []
+
+        for field in fields:
+            conditions.append(f"{field} LIKE {placeholder}")
+            params.append(f"%{search_term}%")
+
+        condition_str = "(" + " OR ".join(conditions) + ")"
+        return condition_str, params
 
 def init_database():
     """初始化数据库"""
@@ -764,14 +879,16 @@ def documents():
     where_conditions = []
     params = []
 
-    # 根据数据库类型选择占位符
-    placeholder = '%s' if use_postgresql else '?'
-
     if search:
-        where_conditions.append(f"(d.title LIKE {placeholder} OR d.content LIKE {placeholder})")
-        params.extend([f'%{search}%', f'%{search}%'])
+        # 使用DatabaseCompatibility工具类构建搜索条件
+        search_condition, search_params = DatabaseCompatibility.build_search_condition(
+            ['d.title', 'd.content'], search, use_postgresql
+        )
+        where_conditions.append(search_condition)
+        params.extend(search_params)
 
     if category:
+        placeholder = DatabaseCompatibility.get_placeholder(use_postgresql)
         where_conditions.append(f"d.category = {placeholder}")
         params.append(category)
 
@@ -801,16 +918,19 @@ def documents():
     total_pages = (total_count + per_page - 1) // per_page
     offset = (page - 1) * per_page
 
-    # 获取文档数据
-    query = f'''
+    # 获取文档数据 - 使用DatabaseCompatibility工具类构建分页查询
+    base_query = f'''
         SELECT d.*, u.username as author_name
         FROM documents d
         LEFT JOIN users u ON d.author_id = u.id
         {where_clause}
         {order_clause}
-        LIMIT {placeholder} OFFSET {placeholder}
     '''
-    cursor.execute(query, params + [per_page, offset])
+
+    final_query, limit_params = DatabaseCompatibility.build_limit_offset_query(
+        base_query, per_page, offset, use_postgresql
+    )
+    cursor.execute(final_query, params + limit_params)
     all_docs = cursor.fetchall()
 
     # 转换为字典格式
@@ -1008,21 +1128,27 @@ def search():
     cursor = conn.cursor()
     use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
 
-    # 简单的搜索实现
-    # 构造搜索模式，包含关键字
-    search_pattern = f"%{query}%"
-    # 根据数据库类型选择占位符
-    placeholder = '%s' if use_postgresql else '?'
+    # 使用DatabaseCompatibility工具类构建搜索条件
+    search_condition, search_params = DatabaseCompatibility.build_search_condition(
+        ['d.title', 'd.content'], query, use_postgresql
+    )
 
-    # 执行SQL查询，搜索标题或内容中包含关键字的文档
-    cursor.execute(f'''
+    # 构建完整查询
+    base_query = f'''
         SELECT d.*, u.username
         FROM documents d
         LEFT JOIN users u ON d.author_id = u.id
-        WHERE d.title LIKE {placeholder} OR d.content LIKE {placeholder}
+        WHERE {search_condition}
         ORDER BY d.created_at DESC
-        LIMIT 20
-    ''', [search_pattern, search_pattern])
+    '''
+
+    # 添加分页限制
+    final_query, limit_params = DatabaseCompatibility.build_limit_offset_query(
+        base_query, 20, 0, use_postgresql
+    )
+
+    # 执行查询
+    cursor.execute(final_query, search_params + limit_params)
 
     # 获取查询结果
     results = cursor.fetchall()
@@ -2286,6 +2412,67 @@ try:
     print("ROS2 Wiki 应用初始化完成")
 except Exception as e:
     print(f"初始化错误: {e}")
+
+@app.route('/debug/compatibility-test')
+def test_database_compatibility():
+    """测试DatabaseCompatibility工具类功能"""
+    try:
+        use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+
+        # 测试boolean条件
+        bool_condition_true = DatabaseCompatibility.get_boolean_condition('is_admin', True, use_postgresql)
+        bool_condition_false = DatabaseCompatibility.get_boolean_condition('is_admin', False, use_postgresql)
+
+        # 测试占位符
+        placeholder = DatabaseCompatibility.get_placeholder(use_postgresql)
+
+        # 测试查询格式化
+        test_query = "SELECT * FROM users WHERE id = ? AND name LIKE ?"
+        formatted_query = DatabaseCompatibility.format_query_placeholders(test_query, use_postgresql)
+
+        # 测试搜索条件构建
+        search_condition, search_params = DatabaseCompatibility.build_search_condition(
+            ['title', 'content'], 'test', use_postgresql
+        )
+
+        # 测试分页查询构建
+        base_query = "SELECT * FROM documents"
+        limit_query, limit_params = DatabaseCompatibility.build_limit_offset_query(
+            base_query, 10, 20, use_postgresql
+        )
+
+        # 测试时间戳函数
+        timestamp_func = DatabaseCompatibility.get_current_timestamp(use_postgresql)
+
+        return jsonify({
+            'status': 'success',
+            'database_type': 'PostgreSQL' if use_postgresql else 'SQLite',
+            'tests': {
+                'boolean_conditions': {
+                    'true_condition': bool_condition_true,
+                    'false_condition': bool_condition_false
+                },
+                'placeholder': placeholder,
+                'query_formatting': {
+                    'original': test_query,
+                    'formatted': formatted_query
+                },
+                'search_condition': {
+                    'condition': search_condition,
+                    'params': search_params
+                },
+                'pagination': {
+                    'query': limit_query,
+                    'params': limit_params
+                },
+                'timestamp_function': timestamp_func
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 # 添加云端调试端点
 if os.environ.get('FLASK_ENV') == 'production':
