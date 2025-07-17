@@ -5,10 +5,68 @@
 """
 
 import os
+import sqlite3
+from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_required, current_user
 from security_middleware import setup_security_middleware, csrf_protect, rate_limit
 from improved_search import ImprovedSearchService
+
+# PostgreSQL支持
+try:
+    import psycopg2
+    HAS_POSTGRESQL = True
+except ImportError:
+    HAS_POSTGRESQL = False
+    print("Warning: psycopg2 not available, using SQLite only")
+
+# 数据库兼容性工具类
+class DatabaseCompatibility:
+    """数据库兼容性工具类 - 支持PostgreSQL和SQLite"""
+
+    @staticmethod
+    def get_placeholder(use_postgresql=False):
+        """获取数据库占位符"""
+        return '%s' if use_postgresql else '?'
+
+    @staticmethod
+    def build_search_condition(fields, search_term, use_postgresql=False):
+        """构建搜索条件"""
+        if use_postgresql:
+            conditions = [f"{field} ILIKE %s" for field in fields]
+            params = [f"%{search_term}%" for _ in fields]
+        else:
+            conditions = [f"{field} LIKE ?" for field in fields]
+            params = [f"%{search_term}%" for _ in fields]
+
+        return f"({' OR '.join(conditions)})", params
+
+    @staticmethod
+    def build_limit_offset_query(base_query, limit, offset, use_postgresql=False):
+        """构建分页查询"""
+        if use_postgresql:
+            return f"{base_query} LIMIT %s OFFSET %s", [limit, offset]
+        else:
+            return f"{base_query} LIMIT ? OFFSET ?", [limit, offset]
+
+def get_db_connection():
+    """获取数据库连接"""
+    database_url = os.environ.get('DATABASE_URL')
+
+    if database_url and database_url.startswith('postgresql') and HAS_POSTGRESQL:
+        # PostgreSQL连接
+        result = urlparse(database_url)
+        conn = psycopg2.connect(
+            database=result.path[1:],
+            user=result.username,
+            password=result.password,
+            host=result.hostname,
+            port=result.port
+        )
+        return conn
+    else:
+        # SQLite连接
+        return sqlite3.connect('ros2_wiki.db')
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -16,6 +74,7 @@ app = Flask(__name__)
 # 安全配置
 app.config.update({
     'SECRET_KEY': os.environ.get('SECRET_KEY', os.urandom(32).hex()),
+    'DATABASE_URL': os.environ.get('DATABASE_URL'),
     'CSRF_ENABLED': True,
     'SESSION_COOKIE_SECURE': os.environ.get('FLASK_ENV') == 'production',
     'SESSION_COOKIE_HTTPONLY': True,
@@ -105,6 +164,106 @@ def logout():
     logout_user()
     flash('您已成功登出', 'info')
     return redirect(url_for('index'))
+
+@app.route('/documents')
+@login_required
+def documents():
+    """文档列表页面 - 支持搜索、分页、筛选"""
+    # 获取查询参数
+    page = int(request.args.get('page', 1))
+    per_page = 12  # 每页显示12个文档
+    search = request.args.get('search', '').strip()
+    category = request.args.get('category', '').strip()
+    sort = request.args.get('sort', 'newest')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+
+    # 构建查询条件
+    where_conditions = []
+    params = []
+
+    if search:
+        # 使用DatabaseCompatibility工具类构建搜索条件
+        search_condition, search_params = DatabaseCompatibility.build_search_condition(
+            ['d.title', 'd.content'], search, use_postgresql
+        )
+        where_conditions.append(search_condition)
+        params.extend(search_params)
+
+    if category:
+        placeholder = DatabaseCompatibility.get_placeholder(use_postgresql)
+        where_conditions.append(f"d.category = {placeholder}")
+        params.append(category)
+
+    where_clause = " AND ".join(where_conditions)
+    if where_clause:
+        where_clause = "WHERE " + where_clause
+
+    # 排序逻辑
+    if sort == 'oldest':
+        order_clause = "ORDER BY d.created_at ASC"
+    elif sort == 'title':
+        order_clause = "ORDER BY d.title ASC"
+    else:  # newest
+        order_clause = "ORDER BY d.created_at DESC"
+
+    # 获取总数
+    count_query = f'''
+        SELECT COUNT(*)
+        FROM documents d
+        LEFT JOIN users u ON d.author_id = u.id
+        {where_clause}
+    '''
+    cursor.execute(count_query, params)
+    total_count = cursor.fetchone()[0]
+
+    # 计算分页
+    total_pages = (total_count + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+
+    # 获取文档数据 - 使用DatabaseCompatibility工具类构建分页查询
+    base_query = f'''
+        SELECT d.*, u.username as author_name
+        FROM documents d
+        LEFT JOIN users u ON d.author_id = u.id
+        {where_clause}
+        {order_clause}
+    '''
+
+    final_query, limit_params = DatabaseCompatibility.build_limit_offset_query(
+        base_query, per_page, offset, use_postgresql
+    )
+    cursor.execute(final_query, params + limit_params)
+    all_docs = cursor.fetchall()
+
+    # 转换为字典格式
+    docs_list = []
+    for doc in all_docs:
+        doc_dict = {
+            'id': doc[0],
+            'title': doc[1],
+            'content': doc[2],
+            'author_id': doc[3],
+            'category': doc[4],
+            'created_at': doc[5],
+            'updated_at': doc[6],
+            'author_name': doc[7] if len(doc) > 7 else '系统'
+        }
+        # 处理日期格式
+        if isinstance(doc_dict['created_at'], str):
+            from datetime import datetime
+            doc_dict['created_at'] = datetime.strptime(doc_dict['created_at'], '%Y-%m-%d %H:%M:%S')
+        docs_list.append(doc_dict)
+
+    conn.close()
+
+    return render_template('documents_list.html',
+                         documents=docs_list,
+                         current_page=page,
+                         total_pages=total_pages,
+                         total_count=total_count)
 
 @app.route('/register', methods=['GET', 'POST'])
 @csrf_protect

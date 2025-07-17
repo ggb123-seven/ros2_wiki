@@ -5,8 +5,8 @@ services:
     region: oregon
     buildCommand: |
       pip install -r requirements.txt
-      python cloud_init.py
-    startCommand: gunicorn app_secured:app --bind=0.0.0.0:$PORT --workers=4 --timeout=60
+      python cloud_init_db.py
+    startCommand: gunicorn app:app --bind=0.0.0.0:$PORT --workers=4 --timeout=60
     envVars:
       - key: SECRET_KEY
         value: "3092b9fbcd9523417c2871c8d3b5410cca586856627bc323f4054c5f8f4297f4"
