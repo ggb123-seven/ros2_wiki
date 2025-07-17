@@ -90,6 +90,15 @@ def login():
     
     return render_template('login.html')
 
+@app.route('/logout')
+@login_required
+def logout():
+    """用户登出"""
+    from flask_login import logout_user
+    logout_user()
+    flash('您已成功登出', 'info')
+    return redirect(url_for('index'))
+
 @app.route('/register', methods=['GET', 'POST'])
 @csrf_protect
 @rate_limit(max_requests=3, window=3600)  # 3次/小时
@@ -140,9 +149,13 @@ def too_many_requests(error):
 @app.errorhandler(500)
 def internal_error(error):
     """500错误处理"""
-    return render_template('error.html',
-                         error_code=500,
-                         error_message='服务器内部错误'), 500
+    try:
+        return render_template('error.html',
+                             error_code=500,
+                             error_message='服务器内部错误'), 500
+    except:
+        # 如果模板加载失败，返回纯文本错误
+        return f"<h1>错误 500</h1><p>服务器内部错误</p><a href='/'>返回首页</a>", 500
 
 if __name__ == '__main__':
     # 开发环境配置
