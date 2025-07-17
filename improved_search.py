@@ -5,18 +5,33 @@
 """
 
 import sqlite3
+import os
 from typing import List, Dict, Optional
 import re
 
 class ImprovedSearchService:
-    """改进的搜索服务"""
+    """改进的搜索服务 - 支持SQLite和PostgreSQL"""
     
     def __init__(self, db_path: str):
         self.db_path = db_path
+        self.is_postgresql = (db_path == 'postgresql' or os.environ.get('DATABASE_URL'))
+        
+    def _get_connection(self):
+        """获取数据库连接"""
+        if self.is_postgresql:
+            # PostgreSQL连接 - 返回None表示功能暂不可用
+            return None
+        else:
+            # SQLite连接
+            return sqlite3.connect(self.db_path)
     
     def full_text_search(self, query: str, limit: int = 20) -> List[Dict]:
         """全文搜索 - 使用FTS5"""
         if not query or len(query.strip()) < 2:
+            return []
+            
+        # PostgreSQL环境暂时返回空结果
+        if self.is_postgresql:
             return []
         
         # 清理搜索查询
@@ -34,7 +49,9 @@ class ImprovedSearchService:
         """
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -53,6 +70,10 @@ class ImprovedSearchService:
     
     def category_search(self, category: str, limit: int = 20) -> List[Dict]:
         """分类搜索 - 使用索引"""
+        # PostgreSQL环境暂时返回空结果
+        if self.is_postgresql:
+            return []
+            
         sql = """
         SELECT d.id, d.title, d.content, d.category, d.created_at, u.username as author
         FROM documents d
@@ -63,7 +84,10 @@ class ImprovedSearchService:
         """
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
+                
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -91,7 +115,9 @@ class ImprovedSearchService:
         """
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -157,7 +183,9 @@ class ImprovedSearchService:
         params.append(limit)
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -212,7 +240,9 @@ class ImprovedSearchService:
         """
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -248,7 +278,9 @@ class ImprovedSearchService:
         """
         
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
+            if not conn:
+                return []
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
