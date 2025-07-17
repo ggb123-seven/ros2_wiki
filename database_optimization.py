@@ -11,8 +11,17 @@ from datetime import datetime
 class DatabaseOptimizer:
     """数据库优化器"""
     
-    def __init__(self, db_path='ros2_wiki.db'):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        # 云端环境适配：优先使用PostgreSQL，fallback到SQLite
+        if db_path is None:
+            # 检查是否为云端环境
+            if os.environ.get('DATABASE_URL'):
+                self.db_path = 'postgresql'  # 标记为PostgreSQL
+                self.database_url = os.environ.get('DATABASE_URL')
+            else:
+                self.db_path = 'ros2_wiki.db'  # 本地SQLite
+        else:
+            self.db_path = db_path
         
     def create_performance_indexes(self):
         """创建性能优化索引"""
@@ -74,6 +83,18 @@ class DatabaseOptimizer:
         """
         
         try:
+            # 检查数据库类型
+            if self.db_path == 'postgresql':
+                # PostgreSQL环境，跳过索引创建（通过app自动处理）
+                print("检测到PostgreSQL环境，索引将在应用启动时创建")
+                return True
+            
+            # SQLite环境
+            if not os.path.exists(self.db_path):
+                print(f"数据库文件不存在: {os.path.abspath(self.db_path)}")
+                print("跳过索引创建，数据库将在应用启动时初始化")
+                return True
+                
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
