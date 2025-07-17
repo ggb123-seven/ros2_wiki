@@ -1,0 +1,15 @@
+import sqlite3
+
+# 连接数据库
+conn = sqlite3.connect('ros2_wiki.db')
+cursor = conn.cursor()
+
+# 查询用户表
+cursor.execute('SELECT id, username, email, is_admin FROM users')
+users = cursor.fetchall()
+
+print("用户列表:")
+for user in users:
+    print(f"ID: {user[0]}, 用户名: {user[1]}, 邮箱: {user[2]}, 管理员: {user[3]}")
+
+conn.close()

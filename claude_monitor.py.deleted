@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""
+Claude Code 监视器
+监视项目文件变更、应用状态、错误日志等
+"""
+
+import os
+import time
+import json
+import hashlib
+from datetime import datetime
+from pathlib import Path
+
+class ClaudeCodeMonitor:
+    def __init__(self, project_path="."):
+        self.project_path = Path(project_path)
+        self.file_hashes = {}
+        self.log_file = "claude_monitor.log"
+        self.status_file = "claude_status.json"
+        
+    def calculate_file_hash(self, file_path):
+        """计算文件MD5哈希值"""
+        try:
+            with open(file_path, 'rb') as f:
+                return hashlib.md5(f.read()).hexdigest()
+        except Exception as e:
+            return None
+    
+    def scan_files(self):
+        """扫描项目文件"""
+        important_files = [
+            "*.py", "*.js", "*.html", "*.css", "*.md", 
+            "*.yaml", "*.yml", "*.json", "*.txt"
+        ]
+        
+        current_files = {}
+        for pattern in important_files:
+            for file_path in self.project_path.rglob(pattern):
+                if not any(part.startswith('.') for part in file_path.parts):
+                    rel_path = file_path.relative_to(self.project_path)
+                    current_files[str(rel_path)] = self.calculate_file_hash(file_path)
+        
+        return current_files
+    
+    def detect_changes(self):
+        """检测文件变更"""
+        current_files = self.scan_files()
+        changes = {
+            'modified': [],
+            'added': [],
+            'deleted': []
+        }
+        
+        # 检测修改和新增
+        for file_path, file_hash in current_files.items():
+            if file_path in self.file_hashes:
+                if self.file_hashes[file_path] != file_hash:
+                    changes['modified'].append(file_path)
+            else:
+                changes['added'].append(file_path)
+        
+        # 检测删除
+        for file_path in self.file_hashes:
+            if file_path not in current_files:
+                changes['deleted'].append(file_path)
+        
+        self.file_hashes = current_files
+        return changes
+    
+    def log_event(self, event_type, message, details=None):
+        """记录事件日志"""
+        timestamp = datetime.now().isoformat()
+        log_entry = {
+            'timestamp': timestamp,
+            'type': event_type,
+            'message': message,
+            'details': details or {}
+        }
+        
+        # 写入日志文件
+        with open(self.log_file, 'a', encoding='utf-8') as f:
+            f.write(f"{timestamp} [{event_type}] {message}\n")
+            if details:
+                f.write(f"  详情: {json.dumps(details, ensure_ascii=False, indent=2)}\n")
+        
+        # 输出到控制台
+        print(f"🔍 [{event_type}] {message}")
+        if details:
+            print(f"   详情: {details}")
+    
+    def check_application_status(self):
+        """检查应用状态"""
+        status = {
+            'timestamp': datetime.now().isoformat(),
+            'files_monitored': len(self.file_hashes),
+            'wsgi_exists': os.path.exists('wsgi.py'),
+            'app_exists': os.path.exists('app.py'),
+            'requirements_exists': os.path.exists('requirements.txt'),
+            'render_config_exists': os.path.exists('render.yaml')
+        }
+        
+        # 检查关键文件内容
+        if status['wsgi_exists']:
+            try:
+                with open('wsgi.py', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    status['wsgi_imports_app'] = 'from app import app' in content
+            except:
+                status['wsgi_imports_app'] = False
+        
+        # 保存状态到文件
+        with open(self.status_file, 'w', encoding='utf-8') as f:
+            json.dump(status, f, ensure_ascii=False, indent=2)
+        
+        return status
+    
+    def start_monitoring(self, interval=5):
+        """开始监视"""
+        print("🚀 Claude Code 监视器启动")
+        print(f"📁 监视目录: {self.project_path.absolute()}")
+        print(f"⏱️  检查间隔: {interval}秒")
+        print("=" * 50)
+        
+        # 初始扫描
+        self.file_hashes = self.scan_files()
+        self.log_event("INIT", f"开始监视，发现 {len(self.file_hashes)} 个文件")
+        
+        try:
+            while True:
+                # 检测文件变更
+                changes = self.detect_changes()
+                
+                if any(changes.values()):
+                    self.log_event("CHANGE", "检测到文件变更", changes)
+                
+                # 检查应用状态
+                status = self.check_application_status()
+                
+                time.sleep(interval)
+                
+        except KeyboardInterrupt:
+            self.log_event("STOP", "监视器已停止")
+            print("\n👋 监视器已停止")
+
+def main():
+    """主函数"""
+    monitor = ClaudeCodeMonitor()
+    
+    # 检查当前状态
+    print("📊 当前项目状态:")
+    status = monitor.check_application_status()
+    for key, value in status.items():
+        if key != 'timestamp':
+            status_icon = "✅" if value else "❌"
+            print(f"  {status_icon} {key}: {value}")
+    
+    print("\n" + "=" * 50)
+    
+    # 开始监视
+    try:
+        monitor.start_monitoring(interval=3)
+    except Exception as e:
+        print(f"❌ 监视器错误: {e}")
+
+if __name__ == '__main__':
+    main()

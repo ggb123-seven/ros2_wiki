@@ -1,0 +1,20 @@
+import sqlite3
+
+# 连接数据库
+conn = sqlite3.connect('ros2_wiki.db')
+cursor = conn.cursor()
+
+# 查询文档ID为1的文档
+cursor.execute('SELECT id, title, category, updated_at FROM documents WHERE id = 1')
+doc = cursor.fetchone()
+
+print("文档ID 1的信息:")
+if doc:
+    print(f"ID: {doc[0]}")
+    print(f"标题: {doc[1]}")
+    print(f"分类: {doc[2]}")
+    print(f"更新时间: {doc[3]}")
+else:
+    print("文档不存在")
+
+conn.close()

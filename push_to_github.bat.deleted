@@ -1,0 +1,47 @@
+@echo off
+echo ========================================
+echo ROS2 Wiki GitHub推送脚本
+echo ========================================
+
+echo 检查Git状态...
+git status
+
+echo.
+echo 尝试推送到GitHub...
+git push origin main
+
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    echo ✅ 推送成功！
+    echo 所有修复内容已成功推送到GitHub仓库
+    echo.
+    echo 推送内容包括：
+    echo - 用户注册功能修复
+    echo - 用户搜索功能修复  
+    echo - 数据库兼容性改进
+    echo - 模板安全性提升
+    echo - 错误处理完善
+    echo - 完整修复报告
+    echo.
+    echo 请访问 https://github.com/ggb123-seven/ros2_wiki 查看更新
+) else (
+    echo.
+    echo ❌ 推送失败，可能的原因：
+    echo 1. 网络连接问题
+    echo 2. GitHub服务器问题
+    echo 3. 认证问题
+    echo.
+    echo 解决方案：
+    echo 1. 检查网络连接
+    echo 2. 稍后重试
+    echo 3. 使用VPN或代理
+    echo 4. 检查GitHub访问权限
+    echo.
+    echo 重试命令：git push origin main
+)
+
+echo.
+echo 当前提交状态：
+git log --oneline -5
+
+pause

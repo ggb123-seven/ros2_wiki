@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""
+Claude Code 实时仪表板
+提供Web界面监视Claude Code状态
+"""
+
+import os
+import json
+import time
+from datetime import datetime
+from flask import Flask, render_template_string, jsonify
+
+app = Flask(__name__)
+
+# HTML模板
+DASHBOARD_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Claude Code 监视仪表板</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-card { margin-bottom: 20px; }
+        .log-container { height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px; }
+        .status-good { color: #28a745; }
+        .status-bad { color: #dc3545; }
+        .auto-refresh { position: fixed; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1><i class="fas fa-robot"></i> Claude Code 监视仪表板</h1>
+                <div class="auto-refresh">
+                    <button class="btn btn-sm btn-primary" onclick="toggleAutoRefresh()">
+                        <i class="fas fa-sync" id="refresh-icon"></i> 自动刷新: <span id="refresh-status">开启</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card status-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-heartbeat"></i> 系统状态</h5>
+                    </div>
+                    <div class="card-body" id="system-status">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card status-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-file-code"></i> 文件状态</h5>
+                    </div>
+                    <div class="card-body" id="file-status">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list"></i> 实时日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="log-container">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>加载日志中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let refreshInterval;
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateSystemStatus(data.system);
+                    updateFileStatus(data.files);
+                    updateLogs(data.logs);
+                })
+                .catch(error => {
+                    console.error('获取状态失败:', error);
+                });
+        }
+
+        function updateSystemStatus(status) {
+            const container = document.getElementById('system-status');
+            let html = '<div class="row">';
+            
+            for (const [key, value] of Object.entries(status)) {
+                if (key !== 'timestamp') {
+                    const icon = value ? 'fas fa-check-circle status-good' : 'fas fa-times-circle status-bad';
+                    html += `
+                        <div class="col-12 mb-2">
+                            <i class="${icon}"></i> ${key}: <strong>${value}</strong>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += '</div>';
+            html += `<small class="text-muted">最后更新: ${status.timestamp}</small>`;
+            container.innerHTML = html;
+        }
+
+        function updateFileStatus(files) {
+            const container = document.getElementById('file-status');
+            let html = `
+                <div class="mb-3">
+                    <i class="fas fa-folder"></i> 监视文件数: <strong>${files.count}</strong>
+                </div>
+            `;
+            
+            if (files.recent_changes && files.recent_changes.length > 0) {
+                html += '<h6>最近变更:</h6><ul class="list-unstyled">';
+                files.recent_changes.forEach(change => {
+                    html += `<li><i class="fas fa-edit"></i> ${change}</li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<p class="text-muted">暂无文件变更</p>';
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function updateLogs(logs) {
+            const container = document.getElementById('log-container');
+            let html = '';
+            
+            logs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleTimeString();
+                html += `
+                    <div class="mb-2">
+                        <span class="badge bg-secondary">${time}</span>
+                        <span class="badge bg-primary">${log.type}</span>
+                        ${log.message}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html || '<p class="text-muted">暂无日志</p>';
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const statusSpan = document.getElementById('refresh-status');
+            const icon = document.getElementById('refresh-icon');
+            
+            if (autoRefresh) {
+                statusSpan.textContent = '开启';
+                icon.classList.add('fa-spin');
+                refreshInterval = setInterval(updateStatus, 3000);
+            } else {
+                statusSpan.textContent = '关闭';
+                icon.classList.remove('fa-spin');
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // 初始化
+        updateStatus();
+        refreshInterval = setInterval(updateStatus, 3000);
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def dashboard():
+    """仪表板主页"""
+    return render_template_string(DASHBOARD_HTML)
+
+@app.route('/api/status')
+def api_status():
+    """获取状态API"""
+    try:
+        # 读取状态文件
+        status_data = {}
+        if os.path.exists('claude_status.json'):
+            with open('claude_status.json', 'r', encoding='utf-8') as f:
+                status_data = json.load(f)
+        
+        # 读取日志文件
+        logs = []
+        if os.path.exists('claude_monitor.log'):
+            with open('claude_monitor.log', 'r', encoding='utf-8') as f:
+                lines = f.readlines()[-20:]  # 最近20条
+                for line in lines:
+                    if line.strip():
+                        parts = line.strip().split(' ', 2)
+                        if len(parts) >= 3:
+                            logs.append({
+                                'timestamp': parts[0],
+                                'type': parts[1].strip('[]'),
+                                'message': parts[2] if len(parts) > 2 else ''
+                            })
+        
+        return jsonify({
+            'system': status_data,
+            'files': {
+                'count': status_data.get('files_monitored', 0),
+                'recent_changes': []  # 可以从日志中提取
+            },
+            'logs': logs
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    print("🌐 Claude Code 仪表板启动")
+    print("📱 访问地址: http://localhost:8080")
+    app.run(host='0.0.0.0', port=8080, debug=True)

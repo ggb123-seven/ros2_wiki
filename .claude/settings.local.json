@@ -41,7 +41,10 @@
       "Bash(ping github.com -c 3)",
       "Bash(ping github.com)",
       "Bash(git config --global http.sslVerify false)",
-      "Bash(echo -e \"\\n=== 检查render.yaml ===\")"
+      "Bash(echo -e \"\\n=== 检查render.yaml ===\")",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": []
   }

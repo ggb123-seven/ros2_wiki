@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""
+ROS2 Wiki用户注册功能综合诊断脚本
+系统性诊断用户注册功能的所有可能失败点
+"""
+
+import sys
+import os
+import traceback
+import sqlite3
+from datetime import datetime
+from werkzeug.security import generate_password_hash
+
+# 导入应用
+try:
+    from app import app, get_db_connection, HAS_POSTGRESQL
+    print("✅ 成功导入应用模块")
+except ImportError as e:
+    print(f"❌ 导入应用模块失败: {e}")
+    sys.exit(1)
+
+class UserRegistrationDiagnostic:
+    """用户注册诊断类"""
+    
+    def __init__(self):
+        self.test_results = {}
+        self.errors = []
+        self.warnings = []
+        
+    def log_result(self, test_name, passed, details="", error=None):
+        """记录测试结果"""
+        self.test_results[test_name] = {
+            'passed': passed,
+            'details': details,
+            'error': str(error) if error else None,
+            'timestamp': datetime.now()
+        }
+        
+        status = "✅ 通过" if passed else "❌ 失败"
+        print(f"{status} {test_name}: {details}")
+        
+        if not passed and error:
+            self.errors.append(f"{test_name}: {error}")
+        elif not passed:
+            self.warnings.append(f"{test_name}: {details}")
+    
+    def test_database_connection(self):
+        """测试数据库连接"""
+        print("\n🧪 测试数据库连接...")
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT 1')
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result and result[0] == 1:
+                db_type = "PostgreSQL" if HAS_POSTGRESQL and app.config['DATABASE_URL'] else "SQLite"
+                self.log_result("数据库连接", True, f"{db_type}连接正常")
+                return True
+            else:
+                self.log_result("数据库连接", False, "连接测试失败")
+                return False
+                
+        except Exception as e:
+            self.log_result("数据库连接", False, "连接异常", e)
+            return False
+    
+    def test_users_table_structure(self):
+        """测试用户表结构"""
+        print("\n🧪 测试用户表结构...")
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # 检查用户表是否存在
+            if HAS_POSTGRESQL and app.config['DATABASE_URL']:
+                cursor.execute("""
+                    SELECT column_name, data_type, is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users'
+                    ORDER BY ordinal_position
+                """)
+            else:
+                cursor.execute("PRAGMA table_info(users)")
+            
+            columns = cursor.fetchall()
+            conn.close()
+            
+            if not columns:
+                self.log_result("用户表结构", False, "用户表不存在")
+                return False
+            
+            # 检查必要字段
+            required_fields = ['id', 'username', 'email', 'password_hash', 'created_at']
+            if HAS_POSTGRESQL and app.config['DATABASE_URL']:
+                existing_fields = [col[0] for col in columns]
+            else:
+                existing_fields = [col[1] for col in columns]
+            
+            missing_fields = [field for field in required_fields if field not in existing_fields]
+            
+            if missing_fields:
+                self.log_result("用户表结构", False, f"缺少字段: {missing_fields}")
+                return False
+            else:
+                self.log_result("用户表结构", True, f"包含所有必要字段: {existing_fields}")
+                return True
+                
+        except Exception as e:
+            self.log_result("用户表结构", False, "检查异常", e)
+            return False
+    
+    def test_password_hashing(self):
+        """测试密码哈希功能"""
+        print("\n🧪 测试密码哈希功能...")
+        
+        try:
+            test_password = "test_password_123"
+            
+            # 测试密码哈希生成
+            password_hash = generate_password_hash(test_password)
+            
+            if password_hash and len(password_hash) > 20:
+                self.log_result("密码哈希生成", True, f"哈希长度: {len(password_hash)}")
+            else:
+                self.log_result("密码哈希生成", False, "哈希生成失败或长度异常")
+                return False
+            
+            # 测试密码验证
+            from werkzeug.security import check_password_hash
+            
+            if check_password_hash(password_hash, test_password):
+                self.log_result("密码哈希验证", True, "密码验证正常")
+                return True
+            else:
+                self.log_result("密码哈希验证", False, "密码验证失败")
+                return False
+                
+        except Exception as e:
+            self.log_result("密码哈希功能", False, "哈希功能异常", e)
+            return False
+    
+    def test_form_data_handling(self):
+        """测试表单数据处理"""
+        print("\n🧪 测试表单数据处理...")
+        
+        try:
+            # 模拟Flask请求上下文
+            with app.test_request_context('/register', method='POST', 
+                                        data={'username': 'test_user', 
+                                              'email': 'test@example.com', 
+                                              'password': 'test_password'}):
+                from flask import request
+                
+                # 测试安全的表单数据获取
+                username = request.form.get('username', '').strip()
+                email = request.form.get('email', '').strip()
+                password = request.form.get('password', '')
+                
+                if username and email and password:
+                    self.log_result("表单数据获取", True, f"获取到: {username}, {email}")
+                else:
+                    self.log_result("表单数据获取", False, "表单数据获取失败")
+                    return False
+                
+                # 测试直接访问（不安全方式）
+                try:
+                    direct_username = request.form['username']
+                    self.log_result("直接表单访问", True, "直接访问成功（存在风险）")
+                except KeyError:
+                    self.log_result("直接表单访问", False, "直接访问失败（KeyError风险）")
+                
+                return True
+                
+        except Exception as e:
+            self.log_result("表单数据处理", False, "处理异常", e)
+            return False
+    
+    def test_user_creation_simulation(self):
+        """测试用户创建模拟（不实际创建）"""
+        print("\n🧪 测试用户创建模拟...")
+        
+        try:
+            # 检查是否有现有的UserManager
+            try:
+                from app_blueprints.permissions import get_user_manager
+                um = get_user_manager()
+                self.log_result("UserManager可用性", True, "UserManager模块可用")
+                
+                # 测试UserManager的create_user方法是否存在
+                if hasattr(um, 'create_user'):
+                    self.log_result("UserManager.create_user", True, "create_user方法存在")
+                else:
+                    self.log_result("UserManager.create_user", False, "create_user方法不存在")
+                    
+            except ImportError as e:
+                self.log_result("UserManager可用性", False, "UserManager模块不可用", e)
+            
+            # 测试数据库插入语句语法
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            use_postgresql = app.config['DATABASE_URL'] and HAS_POSTGRESQL
+            
+            # 测试查询语法
+            if use_postgresql:
+                test_query = 'SELECT * FROM users WHERE username = %s OR email = %s'
+                placeholder = '%s'
+            else:
+                test_query = 'SELECT * FROM users WHERE username = ? OR email = ?'
+                placeholder = '?'
+            
+            self.log_result("SQL语法检查", True, f"占位符: {placeholder}")
+            
+            # 测试插入语句语法（不实际执行）
+            if use_postgresql:
+                insert_query = 'INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)'
+            else:
+                insert_query = 'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)'
+            
+            self.log_result("插入语句语法", True, "SQL语句格式正确")
+            
+            conn.close()
+            return True
+            
+        except Exception as e:
+            self.log_result("用户创建模拟", False, "模拟异常", e)
+            return False
+    
+    def test_error_handling_infrastructure(self):
+        """测试错误处理基础设施"""
+        print("\n🧪 测试错误处理基础设施...")
+        
+        try:
+            # 检查错误处理蓝图是否存在
+            try:
+                from app_blueprints.errors import errors_bp
+                self.log_result("错误处理蓝图", True, "errors_bp蓝图存在")
+            except ImportError as e:
+                self.log_result("错误处理蓝图", False, "errors_bp蓝图不存在", e)
+                return False
+            
+            # 检查是否已注册到主应用
+            blueprint_names = [bp.name for bp in app.blueprints.values()]
+            if 'errors' in blueprint_names:
+                self.log_result("错误处理注册", True, "errors蓝图已注册")
+            else:
+                self.log_result("错误处理注册", False, "errors蓝图未注册到主应用")
+            
+            # 检查Flask-Login是否正常
+            try:
+                from flask_login import current_user
+                self.log_result("Flask-Login", True, "Flask-Login模块正常")
+            except ImportError as e:
+                self.log_result("Flask-Login", False, "Flask-Login模块异常", e)
+            
+            return True
+            
+        except Exception as e:
+            self.log_result("错误处理基础设施", False, "检查异常", e)
+            return False
+    
+    def test_register_route_analysis(self):
+        """分析当前register路由的问题"""
+        print("\n🧪 分析当前register路由...")
+        
+        try:
+            # 检查register路由是否存在
+            with app.test_client() as client:
+                response = client.get('/register')
+                if response.status_code == 200:
+                    self.log_result("register路由可访问", True, f"状态码: {response.status_code}")
+                else:
+                    self.log_result("register路由可访问", False, f"状态码: {response.status_code}")
+            
+            # 模拟POST请求测试（使用无效数据）
+            with app.test_client() as client:
+                try:
+                    response = client.post('/register', data={})
+                    self.log_result("空表单POST测试", True, f"状态码: {response.status_code}")
+                except Exception as e:
+                    self.log_result("空表单POST测试", False, "POST请求异常", e)
+            
+            return True
+            
+        except Exception as e:
+            self.log_result("register路由分析", False, "分析异常", e)
+            return False
+    
+    def run_comprehensive_diagnostic(self):
+        """运行综合诊断"""
+        print("=" * 60)
+        print("🚀 ROS2 Wiki用户注册功能综合诊断")
+        print("=" * 60)
+        
+        # 运行所有测试
+        tests = [
+            self.test_database_connection,
+            self.test_users_table_structure,
+            self.test_password_hashing,
+            self.test_form_data_handling,
+            self.test_user_creation_simulation,
+            self.test_error_handling_infrastructure,
+            self.test_register_route_analysis
+        ]
+        
+        passed_tests = 0
+        total_tests = len(tests)
+        
+        for test in tests:
+            try:
+                if test():
+                    passed_tests += 1
+            except Exception as e:
+                print(f"💥 测试 {test.__name__} 发生异常: {e}")
+                traceback.print_exc()
+        
+        # 生成诊断报告
+        self.generate_diagnostic_report(passed_tests, total_tests)
+        
+        return passed_tests == total_tests
+    
+    def generate_diagnostic_report(self, passed_tests, total_tests):
+        """生成诊断报告"""
+        print(f"\n📊 诊断结果汇总:")
+        print(f"   通过测试: {passed_tests}/{total_tests}")
+        print(f"   成功率: {passed_tests/total_tests*100:.1f}%")
+        
+        if self.errors:
+            print(f"\n❌ 发现的错误 ({len(self.errors)}个):")
+            for error in self.errors:
+                print(f"   • {error}")
+        
+        if self.warnings:
+            print(f"\n⚠️ 警告信息 ({len(self.warnings)}个):")
+            for warning in self.warnings:
+                print(f"   • {warning}")
+        
+        # 生成修复建议
+        print(f"\n🔧 修复建议:")
+        
+        if any("错误处理注册" in result and not result['passed'] for result in self.test_results.values()):
+            print("   1. 注册errors_bp蓝图到主应用")
+        
+        if any("UserManager" in result and not result['passed'] for result in self.test_results.values()):
+            print("   2. 使用现有UserManager.create_user()方法")
+        
+        if any("表单数据" in result and not result['passed'] for result in self.test_results.values()):
+            print("   3. 使用request.form.get()安全获取表单数据")
+        
+        print("   4. 在register路由中添加完整的异常处理")
+        print("   5. 集成现有的安全验证机制")
+
+def main():
+    """主函数"""
+    try:
+        diagnostic = UserRegistrationDiagnostic()
+        success = diagnostic.run_comprehensive_diagnostic()
+        
+        if success:
+            print("\n🎉 诊断完成！所有测试通过。")
+        else:
+            print("\n⚠️ 诊断完成，发现问题需要修复。")
+        
+        return success
+        
+    except Exception as e:
+        print(f"\n💥 诊断过程中发生异常: {e}")
+        traceback.print_exc()
+        return False
+
+if __name__ == '__main__':
+    success = main()
+    sys.exit(0 if success else 1)

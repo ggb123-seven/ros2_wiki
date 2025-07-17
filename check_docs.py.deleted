@@ -1,0 +1,15 @@
+import sqlite3
+
+# 连接数据库
+conn = sqlite3.connect('ros2_wiki.db')
+cursor = conn.cursor()
+
+# 查询文档表
+cursor.execute('SELECT id, title, category FROM documents LIMIT 5')
+docs = cursor.fetchall()
+
+print("文档列表:")
+for doc in docs:
+    print(f"ID: {doc[0]}, 标题: {doc[1]}, 分类: {doc[2]}")
+
+conn.close()
