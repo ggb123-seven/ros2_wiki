@@ -35,8 +35,8 @@ class DevelopmentConfig(Config):
     SESSION_COOKIE_SECURE = False  # 开发环境可以不用HTTPS
     
     # 开发环境的默认管理员
-    DEFAULT_ADMIN_USERNAME = 'admin'
-    DEFAULT_ADMIN_PASSWORD = 'admin123'  # 仅用于开发！
+    DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+    DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'DevPassword123!@#')  # 开发环境强密码
 
 
 class ProductionConfig(Config):
@@ -46,9 +46,13 @@ class ProductionConfig(Config):
     # 生产环境密钥（Render会自动生成）
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
     
-    # 生产环境的管理员设置
-    DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    # 生产环境的管理员设置 - 必须使用环境变量
+    DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME')
+    DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+    
+    # 验证生产环境必须配置
+    if not DEFAULT_ADMIN_USERNAME or not DEFAULT_ADMIN_PASSWORD:
+        raise ValueError("生产环境必须设置ADMIN_USERNAME和ADMIN_PASSWORD环境变量")
     
     # 额外的安全头
     SECURITY_HEADERS = {
