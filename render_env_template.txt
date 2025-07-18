@@ -1,0 +1,23 @@
+# Render平台环境变量配置模板
+# 复制以下内容到Render Dashboard的环境变量设置中
+
+SECRET_KEY=3092b9fbcd9523417c2871c8d3b5410cca586856627bc323f4054c5f8f4297f4
+DATABASE_URL=[从PostgreSQL服务自动获取]
+FLASK_ENV=production
+RENDER=true
+MIN_PASSWORD_LENGTH=12
+REQUIRE_SPECIAL_CHARS=True
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=seventee_0611@qq.com
+ADMIN_PASSWORD=IlukRJovZ05Tyx$b
+AUTO_CREATE_ADMIN=true
+CSRF_ENABLED=True
+SESSION_COOKIE_SECURE=True
+
+# 可选的高级配置
+# REDIS_URL=[如果使用Redis缓存]
+# SENTRY_DSN=[如果使用Sentry错误监控]
+# GOOGLE_CLIENT_ID=[如果使用Google OAuth]
+# GOOGLE_CLIENT_SECRET=[如果使用Google OAuth]
+# GITHUB_CLIENT_ID=[如果使用GitHub OAuth]
+# GITHUB_CLIENT_SECRET=[如果使用GitHub OAuth]
