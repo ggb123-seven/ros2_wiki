@@ -288,12 +288,6 @@ class FileManager:
 # 全局文件管理器实例
 file_manager = FileManager()
 
-# 模板过滤器
-@app.template_filter('format_file_size')
-def format_file_size(size):
-    """格式化文件大小的模板过滤器"""
-    return file_manager.format_file_size(size)
-
 # 数据库兼容性工具类
 class DatabaseCompatibility:
     """数据库兼容性工具类"""
@@ -363,6 +357,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = '请先登录访问此页面'
+
+# 模板过滤器
+@app.template_filter('format_file_size')
+def format_file_size(size):
+    """格式化文件大小的模板过滤器"""
+    return file_manager.format_file_size(size)
 
 # 用户加载函数
 @login_manager.user_loader
