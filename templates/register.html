@@ -1,154 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}加入 ROS2 Wiki 社区{% endblock %}
-
 {% block content %}
-<div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
-    <div class="row w-100">
-        <!-- 左侧注册信息 -->
-        <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center">
-            <div class="text-center text-white">
-                <div class="welcome-content">
-                    <h1 class="display-4 fw-bold mb-4">
-                        🚀 加入我们的社区
-                    </h1>
-                    <p class="lead mb-4">
-                        注册账户，开启您的ROS2学习之旅<br>
-                        与全球开发者一起成长
-                    </p>
-                    <div class="benefits-list">
-                        <div class="benefit-item mb-3">
-                            <i class="fas fa-graduation-cap fa-2x text-warning mb-2"></i>
-                            <h5>免费学习资源</h5>
-                            <p class="small">访问所有教程和学习材料</p>
-                        </div>
-                        <div class="benefit-item mb-3">
-                            <i class="fas fa-comments fa-2x text-info mb-2"></i>
-                            <h5>参与讨论</h5>
-                            <p class="small">在教程下方发表评论和提问</p>
-                        </div>
-                        <div class="benefit-item mb-3">
-                            <i class="fas fa-star fa-2x text-success mb-2"></i>
-                            <h5>个性化体验</h5>
-                            <p class="small">收藏喜欢的教程，跟踪学习进度</p>
-                        </div>
-                    </div>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>用户注册</h4>
             </div>
-        </div>
-
-        <!-- 右侧注册表单 -->
-        <div class="col-lg-6 d-flex align-items-center justify-content-center">
-            <div class="register-form-container">
-                <div class="card shadow-lg border-0" style="max-width: 450px; width: 100%;">
-                    <div class="card-header bg-success text-white text-center py-4">
-                        <h3 class="mb-0">
-                            <i class="fas fa-user-plus me-2"></i>创建账户
-                        </h3>
-                        <p class="mb-0 mt-2 small">填写信息，立即开始学习</p>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
-                    <div class="card-body p-4">
-                        {% with messages = get_flashed_messages() %}
-                            {% if messages %}
-                                {% for message in messages %}
-                                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>{{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
-                                    </div>
-                                {% endfor %}
-                            {% endif %}
-                        {% endwith %}
-
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">
-                                    <i class="fas fa-user me-1"></i>用户名
-                                </label>
-                                <input type="text" class="form-control form-control-lg"
-                                       id="username" name="username"
-                                       placeholder="请输入用户名（3-20个字符）"
-                                       minlength="3" maxlength="20" required>
-                                <div class="form-text">用户名将作为您的显示名称</div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="email" class="form-label">
-                                    <i class="fas fa-envelope me-1"></i>邮箱地址
-                                </label>
-                                <input type="email" class="form-control form-control-lg"
-                                       id="email" name="email"
-                                       placeholder="请输入有效的邮箱地址" required>
-                                <div class="form-text">用于账户验证和重要通知</div>
-                            </div>
-                            <div class="mb-4">
-                                <label for="password" class="form-label">
-                                    <i class="fas fa-lock me-1"></i>密码
-                                </label>
-                                <input type="password" class="form-control form-control-lg"
-                                       id="password" name="password"
-                                       placeholder="请输入密码（至少6位）"
-                                       minlength="6" required>
-                                <div class="form-text">建议使用字母、数字和符号的组合</div>
-                            </div>
-
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="agree" required>
-                                    <label class="form-check-label small" for="agree">
-                                        我已阅读并同意 <a href="#" class="text-decoration-none">服务条款</a> 和 <a href="#" class="text-decoration-none">隐私政策</a>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-success btn-lg">
-                                    <i class="fas fa-user-plus me-2"></i>立即注册
-                                </button>
-                            </div>
-                        </form>
-
-                        <hr class="my-4">
-
-                        <div class="text-center">
-                            <p class="mb-2">已经有账户了？</p>
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-sign-in-alt me-2"></i>立即登录
-                            </a>
-                        </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
-                </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">注册</button>
+                    <a href="{{ url_for('login') }}" class="btn btn-link">已有账户？登录</a>
+                </form>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.welcome-content {
-    max-width: 500px;
-}
-
-.benefit-item {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.register-form-container {
-    width: 100%;
-    max-width: 500px;
-}
-
-@media (max-width: 991px) {
-    .container-fluid {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-    }
-
-    .register-form-container {
-        margin: 2rem 0;
-    }
-}
-</style>
 {% endblock %}
