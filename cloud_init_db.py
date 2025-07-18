@@ -15,18 +15,31 @@ def get_db_connection():
     
     if database_url and database_url.startswith('postgresql'):
         # PostgreSQL for cloud deployment
-        import psycopg2
-        from urllib.parse import urlparse
-        
-        result = urlparse(database_url)
-        conn = psycopg2.connect(
-            database=result.path[1:],
-            user=result.username,
-            password=result.password,
-            host=result.hostname,
-            port=result.port
-        )
-        return conn, 'postgresql'
+        try:
+            import psycopg2
+            from urllib.parse import urlparse
+            
+            result = urlparse(database_url)
+            conn = psycopg2.connect(
+                database=result.path[1:],
+                user=result.username,
+                password=result.password,
+                host=result.hostname,
+                port=result.port
+            )
+            return conn, 'postgresql'
+        except ImportError as e:
+            print(f"⚠️ PostgreSQL driver not available: {e}")
+            print("📝 Falling back to SQLite for local development")
+            import sqlite3
+            conn = sqlite3.connect('ros2_wiki.db')
+            return conn, 'sqlite'
+        except Exception as e:
+            print(f"❌ PostgreSQL connection failed: {e}")
+            print("📝 Falling back to SQLite for local development")
+            import sqlite3
+            conn = sqlite3.connect('ros2_wiki.db')
+            return conn, 'sqlite'
     else:
         # SQLite for local development
         import sqlite3

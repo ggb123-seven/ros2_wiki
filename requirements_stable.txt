@@ -1,0 +1,25 @@
+# Render平台稳定版依赖
+# 使用经过测试的稳定版本
+
+# 核心Flask组件
+Flask==3.0.0
+Flask-Login==0.6.2
+Werkzeug==3.0.1
+
+# 数据库支持 - 使用最新兼容版本
+psycopg2-binary==2.9.9
+
+# Web服务器
+gunicorn==21.2.0
+
+# 模板引擎
+Jinja2==3.1.6
+
+# 安全组件
+itsdangerous==2.2.0
+MarkupSafe==3.0.2
+
+# 实用工具
+click==8.2.1
+blinker==1.9.0
+packaging==25.0
