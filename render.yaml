@@ -3,11 +3,14 @@ services:
     name: ros2-wiki-enterprise
     env: python
     region: oregon
+    plan: free
     buildCommand: |
       pip install -r requirements_render.txt
       python cloud_init_db.py
     startCommand: gunicorn app_render:app --bind=0.0.0.0:$PORT --workers=2 --timeout=60
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: SECRET_KEY
         value: "3092b9fbcd9523417c2871c8d3b5410cca586856627bc323f4054c5f8f4297f4"
       - key: DATABASE_URL
@@ -40,3 +43,4 @@ databases:
     databaseName: ros2_wiki
     user: ros2_wiki_user
     region: oregon
+    plan: free
