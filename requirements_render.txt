@@ -4,7 +4,7 @@ Flask==3.0.0
 Flask-Login==0.6.3
 Werkzeug==3.0.1
 
-# 数据库支持
+# 数据库支持 - PostgreSQL用于云端持久化存储
 psycopg2-binary==2.9.9
 
 # Web服务器
