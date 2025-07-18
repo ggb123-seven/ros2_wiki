@@ -400,12 +400,13 @@ def cache_result(key_prefix, ttl=3600):
             result = func(*args, **kwargs)
             cache.set(cache_key, result, ttl)
             return result
+        # 保留原函数名，避免冲突
+        wrapper.__name__ = func.__name__
         return wrapper
     return decorator
 
 # 路由定义
 @app.route('/')
-@cache_result('homepage', ttl=300)
 def index():
     """首页"""
     try:
@@ -441,7 +442,6 @@ def documents():
         return render_template('documents.html', documents=[], page=1)
 
 @app.route('/documents/<int:doc_id>')
-@cache_result('document_detail', ttl=1800)
 def document_detail(doc_id):
     """文档详情页面"""
     try:
@@ -850,7 +850,6 @@ def get_search_suggestions(query, limit=5):
         logger.error(f"获取搜索建议失败: {e}")
         return []
 
-@cache_result('site_stats', ttl=600)
 def get_site_stats():
     """获取网站统计信息"""
     try:
