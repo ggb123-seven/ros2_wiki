@@ -506,6 +506,62 @@ def logout():
     flash('已成功登出', 'info')
     return redirect(url_for('index'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """用户注册"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not username or not email or not password:
+            flash('所有字段都是必填的', 'error')
+            return render_template('register.html')
+        
+        # 密码强度检查
+        min_length = int(os.environ.get('MIN_PASSWORD_LENGTH', '12'))
+        if len(password) < min_length:
+            flash(f'密码长度至少需要{min_length}个字符', 'error')
+            return render_template('register.html')
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # 检查用户名是否存在
+            placeholder = DatabaseCompatibility.get_placeholder(is_postgresql())
+            cursor.execute(f"SELECT id FROM users WHERE username = {placeholder}", (username,))
+            if cursor.fetchone():
+                flash('用户名已存在', 'error')
+                conn.close()
+                return render_template('register.html')
+            
+            # 检查邮箱是否存在
+            cursor.execute(f"SELECT id FROM users WHERE email = {placeholder}", (email,))
+            if cursor.fetchone():
+                flash('邮箱已被使用', 'error')
+                conn.close()
+                return render_template('register.html')
+            
+            # 创建新用户
+            password_hash = generate_password_hash(password)
+            cursor.execute(f"""
+                INSERT INTO users (username, email, password_hash, is_admin, created_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """, (username, email, password_hash, False, datetime.now()))
+            
+            conn.commit()
+            conn.close()
+            
+            flash('注册成功！请登录', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            logger.error(f"用户注册失败: {e}")
+            flash('注册失败，请稍后重试', 'error')
+    
+    return render_template('register.html')
+
 @app.route('/admin')
 @login_required
 def admin_dashboard():
