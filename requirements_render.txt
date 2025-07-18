@@ -1,7 +1,7 @@
 # Render平台精简依赖
 # 核心Flask组件
 Flask==3.0.0
-Flask-Login==0.6.2
+Flask-Login==0.6.3
 Werkzeug==3.0.1
 
 # 数据库支持

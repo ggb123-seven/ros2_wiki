@@ -1,0 +1,16 @@
+# Render平台修复版依赖
+# 解决所有兼容性问题
+
+# 核心Flask组件 - 使用兼容版本
+Flask==3.0.0
+Flask-Login==0.6.3  # 修复了与Werkzeug 3.0的兼容性
+Werkzeug==3.0.1
+
+# 数据库支持 - 跳过PostgreSQL以避免Python 3.13问题
+# psycopg2-binary==2.9.9  # 暂时注释掉
+
+# Web服务器
+gunicorn==21.2.0
+
+# 标准库（无需额外安装）
+# os, sqlite3, json, datetime, urllib, logging, hashlib, uuid, mimetypes等都是Python标准库
