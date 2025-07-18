@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2>{{ document.title }}</h2>
+                <small class="text-muted">
+                    作者: {{ document.author_name }} | 
+                    创建时间: {{ document.created_at }} | 
+                    分类: {{ document.category }}
+                </small>
+            </div>
+            <div class="card-body">
+                <div class="document-content">
+                    {{ document.content|safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- 文件附件 -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-paperclip me-2"></i>文件附件
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if current_user.is_authenticated %}
+                    <!-- 文件上传表单 -->
+                    <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" class="mb-3">
+                        <div class="input-group">
+                            <input type="file" class="form-control form-control-sm" name="file" accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.md,.zip,.rar">
+                            <button class="btn btn-sm btn-outline-primary" type="submit">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- 文件列表 -->
+                <div class="file-list">
+                    {% if files %}
+                        {% for file in files %}
+                            <div class="file-item d-flex justify-content-between align-items-center py-2 border-bottom">
+                                <div class="file-info">
+                                    <div class="file-name">
+                                        <i class="fas fa-file me-2"></i>
+                                        <small>{{ file.original_name }}</small>
+                                    </div>
+                                    <div class="file-meta">
+                                        <small class="text-muted">
+                                            {{ file.file_size|format_file_size }} | 
+                                            {{ file.upload_time }}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="file-actions">
+                                    <a href="{{ url_for('download_file', file_id=file.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-folder-open fa-2x text-muted mb-2"></i>
+                            <p class="text-muted small">暂无文件</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 相关文档 -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-link me-2"></i>相关文档
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="related-docs">
+                    {% if related_documents %}
+                        {% for doc in related_documents %}
+                            <div class="related-doc-item mb-2">
+                                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="text-decoration-none">
+                                    <small>{{ doc.title }}</small>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-search fa-2x text-muted mb-2"></i>
+                            <p class="text-muted small">暂无相关文档</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.document-content {
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+.file-item {
+    transition: background-color 0.2s;
+}
+
+.file-item:hover {
+    background-color: #f8f9fa;
+}
+
+.file-name {
+    font-weight: 500;
+}
+
+.file-meta {
+    font-size: 0.8rem;
+}
+
+.related-doc-item {
+    padding: 0.5rem;
+    border-left: 3px solid #007bff;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+
+.related-doc-item:hover {
+    background-color: #e9ecef;
+}
+</style>
+{% endblock %}

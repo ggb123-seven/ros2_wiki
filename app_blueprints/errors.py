@@ -127,26 +127,22 @@ def handle_exception(error):
     
     return render_template('errors/500.html', error=error_message), 500
 
-# 数据库错误处理
-@errors_bp.app_errorhandler(Exception)
+# 数据库错误处理 - 使用不同的错误处理器名称
+@errors_bp.app_errorhandler(503)
 def handle_database_error(error):
     """数据库错误处理"""
-    if 'database' in str(error).lower() or 'sqlite' in str(error).lower():
-        current_app.logger.error(f'数据库错误: {error}', exc_info=True)
-        
-        if request.path.startswith('/api/'):
-            return jsonify({
-                'error': '数据库连接错误',
-                'status_code': 503,
-                'timestamp': datetime.now().isoformat(),
-                'path': request.path,
-                'message': '服务暂时不可用，请稍后重试'
-            }), 503
-        
-        return render_template('errors/503.html'), 503
+    current_app.logger.error(f'数据库错误: {error}', exc_info=True)
     
-    # 如果不是数据库错误，继续抛出
-    raise error
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'error': '数据库连接错误',
+            'status_code': 503,
+            'timestamp': datetime.now().isoformat(),
+            'path': request.path,
+            'message': '服务暂时不可用，请稍后重试'
+        }), 503
+    
+    return render_template('errors/503.html'), 503
 
 # 自定义错误类
 class ValidationError(Exception):

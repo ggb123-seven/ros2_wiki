@@ -4,9 +4,9 @@ services:
     env: python
     region: oregon
     buildCommand: |
-      pip install -r requirements.txt
+      pip install -r requirements_render.txt
       python cloud_init_db.py
-    startCommand: gunicorn app:app --bind=0.0.0.0:$PORT --workers=4 --timeout=60
+    startCommand: gunicorn app_render:app --bind=0.0.0.0:$PORT --workers=2 --timeout=60
     envVars:
       - key: SECRET_KEY
         value: "3092b9fbcd9523417c2871c8d3b5410cca586856627bc323f4054c5f8f4297f4"
@@ -16,6 +16,8 @@ services:
           property: connectionString
       - key: FLASK_ENV
         value: production
+      - key: RENDER
+        value: "true"
       - key: MIN_PASSWORD_LENGTH
         value: "12"
       - key: REQUIRE_SPECIAL_CHARS

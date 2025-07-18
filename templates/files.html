@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理 - ROS2 Wiki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-robot me-2"></i>ROS2 Wiki
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                <a class="nav-link" href="{{ url_for('documents') }}">文档</a>
+                <a class="nav-link active" href="{{ url_for('files') }}">文件</a>
+                {% if current_user.is_authenticated %}
+                    <a class="nav-link" href="{{ url_for('logout') }}">登出</a>
+                {% else %}
+                    <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Flash消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>我的文件
+                        </h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                            <i class="fas fa-upload me-2"></i>上传文件
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        {% if files %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>文件名</th>
+                                            <th>文件大小</th>
+                                            <th>文件类型</th>
+                                            <th>上传时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for file in files %}
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-file me-2"></i>
+                                                    {{ file.original_name }}
+                                                </td>
+                                                <td>
+                                                    <span class="file-size" data-size="{{ file.file_size }}">
+                                                        {{ format_file_size(file.file_size) }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-secondary">
+                                                        {{ file.mime_type or '未知' }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ file.upload_time }}</td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="{{ url_for('download_file', file_id=file.id) }}" 
+                                                           class="btn btn-outline-primary">
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                        <button class="btn btn-outline-info" 
+                                                                onclick="showFileInfo('{{ file.id }}')">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </button>
+                                                        <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}" 
+                                                              class="d-inline" onsubmit="return confirm('确定要删除这个文件吗？')">
+                                                            <button type="submit" class="btn btn-outline-danger">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">还没有上传任何文件</p>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                                    <i class="fas fa-upload me-2"></i>上传第一个文件
+                                </button>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>使用说明
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>支持的文件类型：</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-file-alt me-2"></i>文档：txt, pdf, doc, docx, md</li>
+                                    <li><i class="fas fa-table me-2"></i>表格：xls, xlsx</li>
+                                    <li><i class="fas fa-file-powerpoint me-2"></i>演示：ppt, pptx</li>
+                                    <li><i class="fas fa-image me-2"></i>图片：png, jpg, jpeg, gif</li>
+                                    <li><i class="fas fa-archive me-2"></i>压缩包：zip, rar</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>文件限制：</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-weight-hanging me-2"></i>单个文件最大：10MB</li>
+                                    <li><i class="fas fa-shield-alt me-2"></i>文件安全扫描：已启用</li>
+                                    <li><i class="fas fa-cloud me-2"></i>存储位置：云端临时存储</li>
+                                    <li><i class="fas fa-exclamation-triangle me-2"></i>注意：重启后文件可能丢失</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传模态框 -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">上传文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="fileInput" class="form-label">选择文件</label>
+                            <input type="file" class="form-control" id="fileInput" name="file" required>
+                            <div class="form-text">支持的文件类型：txt, pdf, png, jpg, jpeg, gif, doc, docx, xls, xlsx, ppt, pptx, md, zip, rar</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="progress" style="display: none;">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>上传
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文件信息模态框 -->
+    <div class="modal fade" id="fileInfoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">文件信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="fileInfoContent">
+                        <!-- 文件信息将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 显示文件信息
+        function showFileInfo(fileId) {
+            fetch(`/file_info/${fileId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('获取文件信息失败：' + data.error);
+                        return;
+                    }
+                    
+                    const content = `
+                        <div class="row">
+                            <div class="col-sm-4"><strong>文件名:</strong></div>
+                            <div class="col-sm-8">${data.original_name}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>文件大小:</strong></div>
+                            <div class="col-sm-8">${data.formatted_size}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>文件类型:</strong></div>
+                            <div class="col-sm-8">${data.mime_type || '未知'}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>上传时间:</strong></div>
+                            <div class="col-sm-8">${data.upload_time}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>上传者:</strong></div>
+                            <div class="col-sm-8">${data.uploader_name}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>文件ID:</strong></div>
+                            <div class="col-sm-8"><code>${data.id}</code></div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('fileInfoContent').innerHTML = content;
+                    new bootstrap.Modal(document.getElementById('fileInfoModal')).show();
+                })
+                .catch(error => {
+                    alert('获取文件信息失败：' + error);
+                });
+        }
+
+        // 文件上传进度
+        document.querySelector('form[enctype="multipart/form-data"]').addEventListener('submit', function() {
+            const progress = document.querySelector('.progress');
+            const progressBar = document.querySelector('.progress-bar');
+            
+            progress.style.display = 'block';
+            
+            // 模拟进度（实际应用中需要使用XMLHttpRequest或fetch来实现真实进度）
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 10;
+                progressBar.style.width = width + '%';
+                if (width >= 100) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        });
+
+        // 页面加载时格式化文件大小
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.file-size').forEach(element => {
+                const size = parseInt(element.getAttribute('data-size'));
+                element.textContent = formatFileSize(size);
+            });
+        });
+    </script>
+</body>
+</html>

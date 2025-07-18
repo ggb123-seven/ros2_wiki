@@ -1,9 +1,9 @@
-# ROS2 Wiki Enhanced - Render部署依赖
-# 为Render部署添加必要的依赖包
+# ROS2 Wiki Enhanced - Python 3.13兼容依赖
+# 为Python 3.13环境优化的依赖包
 
-Flask==2.3.3
+Flask==3.0.0
 Flask-Login==0.6.3
-Werkzeug==2.3.7
-Markdown==3.5.1
+Werkzeug==3.0.1
+Markdown==3.5.2
 gunicorn==21.2.0
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.9

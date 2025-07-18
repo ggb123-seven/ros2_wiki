@@ -1,0 +1,14 @@
+# Render平台精简依赖
+# 核心Flask组件
+Flask==3.0.0
+Flask-Login==0.6.2
+Werkzeug==3.0.1
+
+# 数据库支持
+psycopg2-binary==2.9.7
+
+# Web服务器
+gunicorn==21.2.0
+
+# 标准库（无需额外安装）
+# os, sqlite3, json, datetime, urllib, logging, hashlib, uuid, mimetypes等都是Python标准库

@@ -74,6 +74,20 @@ def create_tables(cursor, db_type):
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS files (
+                id VARCHAR(36) PRIMARY KEY,
+                original_name VARCHAR(255) NOT NULL,
+                safe_filename VARCHAR(255) NOT NULL,
+                file_path VARCHAR(500) NOT NULL,
+                file_size BIGINT NOT NULL,
+                file_hash VARCHAR(32),
+                mime_type VARCHAR(100),
+                user_id INTEGER REFERENCES users(id),
+                upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
     else:
         # SQLite table creation (for local development)
         cursor.execute('''
@@ -115,6 +129,21 @@ def create_tables(cursor, db_type):
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS files (
+                id TEXT PRIMARY KEY,
+                original_name TEXT NOT NULL,
+                safe_filename TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                file_hash TEXT,
+                mime_type TEXT,
+                user_id INTEGER,
+                upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
 
 def create_admin_account(cursor, db_type):
     """Create admin account from environment variables"""
@@ -150,6 +179,61 @@ def create_admin_account(cursor, db_type):
     
     print(f"✅ Created admin account: {admin_username} ({admin_email})")
 
+def create_sample_documents(cursor, db_type):
+    """Create sample documents"""
+    # Get admin user ID
+    if db_type == 'postgresql':
+        cursor.execute('SELECT id FROM users WHERE is_admin = TRUE LIMIT 1')
+    else:
+        cursor.execute('SELECT id FROM users WHERE is_admin = 1 LIMIT 1')
+    
+    admin_user = cursor.fetchone()
+    if not admin_user:
+        print("No admin user found, skipping sample documents")
+        return
+    
+    admin_id = admin_user[0]
+    
+    # Check if documents already exist
+    cursor.execute('SELECT COUNT(*) FROM documents')
+    doc_count = cursor.fetchone()[0]
+    
+    if doc_count > 0:
+        print(f"✅ Documents already exist ({doc_count} documents)")
+        return
+    
+    sample_docs = [
+        {
+            'title': 'ROS2入门指南',
+            'content': '# ROS2入门指南\n\n这是一个ROS2的入门教程，帮助您快速开始学习ROS2。\n\n## 什么是ROS2？\n\nROS2是一个开源的机器人操作系统框架。',
+            'category': 'ROS2基础'
+        },
+        {
+            'title': 'ROS2节点通信',
+            'content': '# ROS2节点通信\n\n学习ROS2中节点之间的通信方式。\n\n## 话题通信\n\n话题是ROS2中最常用的通信方式。',
+            'category': 'ROS2进阶'
+        },
+        {
+            'title': 'ROS2工作空间',
+            'content': '# ROS2工作空间\n\n如何创建和管理ROS2工作空间。\n\n## 创建工作空间\n\n```bash\nmkdir -p ~/ros2_ws/src\n```',
+            'category': 'ROS2工具'
+        }
+    ]
+    
+    for doc in sample_docs:
+        if db_type == 'postgresql':
+            cursor.execute('''
+                INSERT INTO documents (title, content, author_id, category)
+                VALUES (%s, %s, %s, %s)
+            ''', (doc['title'], doc['content'], admin_id, doc['category']))
+        else:
+            cursor.execute('''
+                INSERT INTO documents (title, content, author_id, category)
+                VALUES (?, ?, ?, ?)
+            ''', (doc['title'], doc['content'], admin_id, doc['category']))
+    
+    print(f"✅ Created {len(sample_docs)} sample documents")
+
 def init_cloud_database():
     """Initialize database for cloud deployment"""
     print("=== Cloud Database Initialization ===")
@@ -169,6 +253,10 @@ def init_cloud_database():
             print("Creating admin account...")
             create_admin_account(cursor, db_type)
         
+        # Create sample documents
+        print("Creating sample documents...")
+        create_sample_documents(cursor, db_type)
+        
         conn.commit()
         conn.close()
         
@@ -177,6 +265,8 @@ def init_cloud_database():
         
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 if __name__ == '__main__':

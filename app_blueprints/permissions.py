@@ -249,14 +249,17 @@ class UserManager:
             if not is_valid:
                 return False, "; ".join(errors)
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+            
             password_hash = generate_password_hash(new_password)
-            cursor.execute("""
+            cursor.execute(f"""
             UPDATE users 
-            SET password_hash = ?
-            WHERE id = ?
+            SET password_hash = {placeholder}
+            WHERE id = {placeholder}
             """, [password_hash, user_id])
             
             conn.commit()
@@ -276,14 +279,17 @@ class UserManager:
             if user_id == current_user.id:
                 return False, "不能删除当前登录的用户"
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+            
             # 删除用户相关的评论
-            cursor.execute("DELETE FROM comments WHERE user_id = ?", [user_id])
+            cursor.execute(f"DELETE FROM comments WHERE user_id = {placeholder}", [user_id])
             
             # 删除用户
-            cursor.execute("DELETE FROM users WHERE id = ?", [user_id])
+            cursor.execute(f"DELETE FROM users WHERE id = {placeholder}", [user_id])
             
             conn.commit()
             affected_rows = cursor.rowcount
@@ -302,11 +308,14 @@ class UserManager:
             if user_id == current_user.id:
                 return False, "不能修改当前登录用户的管理员权限"
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
+            # 根据数据库类型选择占位符
+            placeholder = "%s" if self.use_postgresql else "?"
+            
             # 获取当前状态
-            cursor.execute("SELECT is_admin FROM users WHERE id = ?", [user_id])
+            cursor.execute(f"SELECT is_admin FROM users WHERE id = {placeholder}", [user_id])
             result = cursor.fetchone()
             
             if not result:
@@ -315,7 +324,7 @@ class UserManager:
             
             # 切换状态
             new_status = not result[0]
-            cursor.execute("UPDATE users SET is_admin = ? WHERE id = ?", [new_status, user_id])
+            cursor.execute(f"UPDATE users SET is_admin = {placeholder} WHERE id = {placeholder}", [new_status, user_id])
             
             conn.commit()
             conn.close()

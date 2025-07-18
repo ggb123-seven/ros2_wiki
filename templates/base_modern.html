@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ROS2 Wiki - 现代化的机器人操作系统知识库">
+    <meta name="keywords" content="ROS2, 机器人, 教程, 文档, 知识库">
+    <meta name="author" content="米醋电子工作室">
+    
+    <!-- PWA支持 -->
+    <meta name="theme-color" content="#007bff">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="{{ url_for('static', filename='css/modern-theme.css') }}" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='js/app.js') }}" as="script">
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/modern-theme.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    <!-- 页面特定CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <title>{% block title %}ROS2 Wiki - 现代化知识库{% endblock %}</title>
+</head>
+<body>
+    <!-- 进度条 -->
+    <div id="readingProgress" class="progress-bar"></div>
+    
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-robot me-2"></i>ROS2 Wiki
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-1"></i>首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('documents') }}">
+                            <i class="fas fa-book me-1"></i>文档
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('search') }}">
+                            <i class="fas fa-search me-1"></i>搜索
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- 搜索框 -->
+                <div class="search-container me-3">
+                    <input type="text" 
+                           id="searchInput" 
+                           class="search-input" 
+                           placeholder="搜索文档... (Ctrl+K)"
+                           autocomplete="off">
+                    <div id="searchSuggestions" class="search-suggestions"></div>
+                </div>
+                
+                <ul class="navbar-nav">
+                    <!-- 主题切换 -->
+                    <li class="nav-item">
+                        <button id="themeToggle" class="theme-toggle" data-tooltip="切换主题">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </li>
+                    
+                    <!-- 用户菜单 -->
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ current_user.username }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if current_user.is_admin %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                                        <i class="fas fa-tachometer-alt me-2"></i>管理面板
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                                </a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>登录
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <!-- Flash消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container mt-4">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- 页面内容 -->
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="bg-dark text-light py-5 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5><i class="fas fa-robot me-2"></i>ROS2 Wiki</h5>
+                    <p>现代化的机器人操作系统知识库</p>
+                    <p class="text-muted">© 2024 米醋电子工作室</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>快速链接</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('documents') }}" class="text-light">文档中心</a></li>
+                        <li><a href="{{ url_for('search') }}" class="text-light">搜索功能</a></li>
+                        <li><a href="#" class="text-light">API文档</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>技术支持</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-light">使用指南</a></li>
+                        <li><a href="#" class="text-light">问题反馈</a></li>
+                        <li><a href="#" class="text-light">联系我们</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- 快捷键帮助模态框 -->
+    <div class="modal fade" id="shortcutsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">键盘快捷键</h5>
+                    <button type="button" class="modal-close" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <strong>搜索</strong>
+                        </div>
+                        <div class="col-6">
+                            <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <strong>帮助</strong>
+                        </div>
+                        <div class="col-6">
+                            <kbd>Ctrl</kbd> + <kbd>/</kbd>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <strong>关闭模态框</strong>
+                        </div>
+                        <div class="col-6">
+                            <kbd>Esc</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 通知容器 -->
+    <div id="notification-container"></div>
+    
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- 页面特定JavaScript -->
+    {% block extra_js %}{% endblock %}
+    
+    <!-- 性能监控 -->
+    <script>
+        // 页面加载性能监控
+        window.addEventListener('load', function() {
+            if ('performance' in window) {
+                const perfData = performance.getEntriesByType('navigation')[0];
+                const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
+                
+                // 如果加载时间超过3秒，显示提示
+                if (loadTime > 3000) {
+                    if (window.ros2WikiApp) {
+                        window.ros2WikiApp.showNotification(
+                            '页面加载较慢，建议检查网络连接', 
+                            'warning', 
+                            5000
+                        );
+                    }
+                }
+            }
+        });
+    </script>
+    
+    <!-- 开发工具 -->
+    {% if config.DEBUG %}
+    <script>
+        // 开发模式下的调试工具
+        console.log('🚀 ROS2 Wiki 开发模式');
+        console.log('📊 性能监控已启用');
+        console.log('🔧 调试工具已加载');
+    </script>
+    {% endif %}
+</body>
+</html>
